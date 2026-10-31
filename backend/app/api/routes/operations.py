@@ -85,3 +85,4 @@ async def get_operations_overview(wedding_id: str):
     """Consolidated live day-of operations overview: events, minute-by-minute schedule, vendor status, and open issues."""
     data = OperationService.get_operations_overview(wedding_id)
     return APIResponse(success=True, data=data)
+

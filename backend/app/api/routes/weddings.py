@@ -40,3 +40,4 @@ async def update_wedding(wedding_id: str, payload: WeddingUpdate):
     """Update wedding specifications or status."""
     data = WeddingService.update_wedding(wedding_id, payload)
     return APIResponse(success=True, data=data)
+

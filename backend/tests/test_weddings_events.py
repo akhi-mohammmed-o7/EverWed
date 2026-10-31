@@ -64,3 +64,4 @@ def test_wedding_event_relationship_integrity(client: TestClient) -> None:
     res_get_w = client.get(f"/api/v1/weddings/{wedding_id}")
     assert res_get_w.status_code == 200
     assert res_get_w.json()["data"]["events_count"] == 2
+

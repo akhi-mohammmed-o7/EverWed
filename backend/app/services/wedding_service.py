@@ -171,3 +171,4 @@ class WeddingService:
         data["updated_at"] = now
         store.weddings[wedding_id] = data
         return WeddingResponse(**data)
+

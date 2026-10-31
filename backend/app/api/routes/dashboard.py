@@ -22,3 +22,4 @@ async def get_dashboard_overview():
     """
     data = DashboardService.get_management_overview()
     return APIResponse(success=True, data=data)
+

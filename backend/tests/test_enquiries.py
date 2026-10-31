@@ -53,3 +53,4 @@ def test_cannot_convert_enquiry_twice(client: TestClient) -> None:
     res2 = client.post(f"/api/v1/enquiries/{eid}/convert", json={})
     assert res2.status_code == 400
     assert res2.json()["error"]["code"] == "ENQUIRY_ALREADY_CONVERTED"
+

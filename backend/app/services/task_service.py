@@ -126,3 +126,4 @@ class TaskService:
         today_str = date.today().isoformat()
         task["is_overdue"] = (task.get("due_date", "") < today_str and task.get("status") != "done")
         return TaskResponse(**task)
+

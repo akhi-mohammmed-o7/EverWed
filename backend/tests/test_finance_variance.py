@@ -110,3 +110,4 @@ def test_variance_explanation_and_overpayment_protection(client: TestClient) -> 
     assert fin["vendor_paid_amount"] == 1200000.0
     assert fin["vendor_outstanding_payable"] == 0.0
     assert fin["net_agency_profit"] == 10000000.0 - 1200000.0
+

@@ -102,3 +102,4 @@ class DashboardService:
             urgent_tasks=urgent_tasks[:10],
             recent_issues=recent_issues[:10],
         )
+

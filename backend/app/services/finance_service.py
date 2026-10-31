@@ -293,3 +293,4 @@ class FinanceService:
             net_agency_profit=net_profit,
             profit_margin_percentage=margin_pct,
         )
+

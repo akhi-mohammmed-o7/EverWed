@@ -103,3 +103,4 @@ class QuoteComparisonResponse(BaseModel):
     quotes: List[QuoteComparisonItem]
     lowest_quote_id: Optional[str] = None
     selected_quote_id: Optional[str] = None
+

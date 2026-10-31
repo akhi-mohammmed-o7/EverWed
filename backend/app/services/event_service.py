@@ -98,3 +98,4 @@ class EventService:
         data["updated_at"] = now
         store.events[event_id] = data
         return EventResponse(**data)
+

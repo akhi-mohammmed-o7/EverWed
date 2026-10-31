@@ -175,3 +175,4 @@ class OperationService:
             active_issues=active_issues,
             resolved_issues_count=resolved_count,
         )
+

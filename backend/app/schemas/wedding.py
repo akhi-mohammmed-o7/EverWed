@@ -102,3 +102,4 @@ class EventResponse(EventBase):
     odoo_task_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+

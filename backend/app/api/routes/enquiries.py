@@ -47,3 +47,4 @@ async def convert_enquiry_to_wedding(enquiry_id: str, payload: ConvertEnquiryReq
     """Convert a confirmed enquiry into a Wedding record and auto-generate 25+ standard operational tasks."""
     data = EnquiryService.convert_to_wedding(enquiry_id, payload)
     return APIResponse(success=True, data=data)
+

@@ -40,3 +40,4 @@ async def update_event(event_id: str, payload: EventUpdate):
     """Update event coordinator, venue hall, timing, or status."""
     data = EventService.update_event(event_id, payload)
     return APIResponse(success=True, data=data)
+

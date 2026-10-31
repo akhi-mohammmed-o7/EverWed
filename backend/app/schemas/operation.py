@@ -88,3 +88,4 @@ class OperationsOverviewResponse(BaseModel):
     vendor_arrivals: List[VendorArrivalLog]
     active_issues: List[OperationalIssueResponse]
     resolved_issues_count: int
+

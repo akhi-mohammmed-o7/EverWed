@@ -46,3 +46,4 @@ async def select_winning_quote(quote_id: str):
     """Select winning vendor quote. Automatically marks competing quotes in that category as rejected."""
     data = QuoteService.select_winning_quote(quote_id)
     return APIResponse(success=True, data=data)
+

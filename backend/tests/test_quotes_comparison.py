@@ -63,3 +63,4 @@ def test_quote_comparison_and_auto_close_competing(client: TestClient) -> None:
     quotes = {q["id"]: q["status"] for q in res_quotes.json()["data"]}
     assert quotes[qa_id] == "selected"
     assert quotes[qb_id] == "rejected"
+

@@ -40,3 +40,4 @@ class DashboardOverviewResponse(BaseModel):
     upcoming_events: List[dict]
     urgent_tasks: List[dict]
     recent_issues: List[dict]
+

@@ -108,3 +108,4 @@ class WeddingFinancialSummary(BaseModel):
     
     net_agency_profit: float = Field(..., description="Revenue received/contracted minus actual vendor expenses")
     profit_margin_percentage: float
+

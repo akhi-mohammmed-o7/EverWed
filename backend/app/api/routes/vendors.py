@@ -43,3 +43,4 @@ async def update_vendor(vendor_id: str, payload: VendorUpdate):
     """Update vendor contact details or services."""
     data = VendorService.update_vendor(vendor_id, payload)
     return APIResponse(success=True, data=data)
+

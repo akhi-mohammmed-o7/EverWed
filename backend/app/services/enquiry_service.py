@@ -233,3 +233,4 @@ class EnquiryService:
             "message": "Enquiry successfully converted to Wedding with 25+ standard operational tasks generated",
             "wedding": wedding_data,
         }
+

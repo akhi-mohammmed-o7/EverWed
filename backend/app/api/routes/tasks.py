@@ -45,3 +45,4 @@ async def update_task(task_id: str, payload: TaskUpdate):
     """Update task progress, assignee, deadline, or mark Done."""
     data = TaskService.update_task(task_id, payload)
     return APIResponse(success=True, data=data)
+

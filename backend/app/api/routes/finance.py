@@ -68,3 +68,4 @@ async def get_wedding_financial_summary(wedding_id: str):
     """
     data = FinanceService.get_wedding_financial_summary(wedding_id)
     return APIResponse(success=True, data=data)
+

@@ -292,3 +292,4 @@ def seed_demo_data() -> dict:
     }
 
     return {"message": "Demo data successfully seeded for The Royal Knot", "wedding_id": wedding_id}
+

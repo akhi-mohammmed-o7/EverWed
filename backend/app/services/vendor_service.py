@@ -282,3 +282,4 @@ class QuoteService:
             "agreed_price_inr": quote["normalized_total"],
             "vendor_name": quote["vendor_name"],
         }
+

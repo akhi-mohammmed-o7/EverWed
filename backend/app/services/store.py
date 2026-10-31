@@ -167,3 +167,4 @@ class Store:
 
 # Global singleton instance
 store = Store()
+
