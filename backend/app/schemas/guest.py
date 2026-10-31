@@ -34,3 +34,19 @@ class GuestUpdate(BaseModel):
 class GuestResponse(GuestCreate):
     id: str
     wedding_id: str
+
+
+class GuestImportRequest(BaseModel):
+    csv: str = Field(min_length=1, max_length=2_000_000)
+
+
+class GuestImportRowError(BaseModel):
+    row: int
+    message: str
+
+
+class GuestImportResult(BaseModel):
+    created: int
+    skipped: int
+    errors: list[GuestImportRowError] = Field(default_factory=list)
+    error_count: int = 0

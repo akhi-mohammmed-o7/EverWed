@@ -14,6 +14,7 @@ from app.core.exceptions import OdooRecordNotFound, RoyalKnotException
 from app.core.money import normalize_rupees, sum_paise, from_paise
 from app.integrations.odoo.client import get_odoo_client
 from app.schemas.wedding import WeddingCreate, WeddingResponse, WeddingUpdate
+from app.services.plan_service import generate_event_tasks, generate_standard_plan
 from app.services.store import store
 
 logger = logging.getLogger("royal_knot.wedding_service")
@@ -37,10 +38,21 @@ class WeddingService:
                     detail="An active Lead Planner account with that email is required.",
                     error_code="PLANNER_ACCOUNT_REQUIRED",
                 )
+            now = datetime.now(timezone.utc)
             wedding["assigned_planner_id"] = planner["id"]
             wedding["assigned_planner_email"] = planner["email"]
-            wedding["updated_at"] = datetime.now(timezone.utc)
+            wedding["assigned_planner_name"] = planner["name"]
+            wedding["updated_at"] = now
             store.weddings[wedding_id] = wedding
+            # Keep the displayed task owner honest: generated tasks that were
+            # waiting for a planner now belong to the newly assigned planner.
+            for task in store.tasks.values():
+                if task.get("wedding_id") != wedding_id:
+                    continue
+                if task.get("owner") in {"Couple", "Lead Planner"}:
+                    task["owner"] = planner["name"]
+                    task["updated_at"] = now
+                    store.tasks[task["id"]] = task
         return WeddingResponse(**wedding)
 
     @staticmethod
@@ -82,6 +94,7 @@ class WeddingService:
             "start_date": payload.start_date,
             "end_date": payload.end_date,
             "status": "planning",
+            "created_by_role": "couple" if couple_user_id else "staff",
             "events_count": 0,
             "vendors_count": 0,
             "tasks_count": 0,
@@ -114,12 +127,17 @@ class WeddingService:
                     "status": "scheduled", "notes": None, "odoo_task_id": None, "created_at": now, "updated_at": now,
                 }
                 store.events[event_id] = event
+                generate_event_tasks(wedding_id, event_id)
             data["events_count"] = len(functions or [])
             store.weddings[wedding_id] = data
             if couple is not None:
                 couple["wedding_id"] = wedding_id
                 couple["updated_at"] = now
                 store.users[couple_user_id] = couple
+                # A couple-created workspace receives its planning checklist
+                # immediately; it no longer depends on an internal booking
+                # deposit that only agency users can record.
+                generate_standard_plan(wedding_id)
 
         return WeddingResponse(**data)
 
@@ -200,10 +218,35 @@ class WeddingService:
             raise OdooRecordNotFound(detail=f"Wedding with ID '{wedding_id}' not found")
 
         now = datetime.now(timezone.utc)
-        for field, val in payload.model_dump(exclude_unset=True).items():
+        updates = payload.model_dump(exclude_unset=True)
+        for field, val in updates.items():
             if field in {"budget_allocated", "package_fee"} and val is not None:
                 val = normalize_rupees(val)
             data[field] = val
+
+        start_date = str(data.get("start_date", ""))
+        end_date = str(data.get("end_date", ""))
+        if start_date and end_date and end_date < start_date:
+            raise RoyalKnotException(
+                status_code=422,
+                detail="Wedding end date must be on or after the start date.",
+                error_code="WEDDING_DATE_INVALID",
+            )
+        # Existing scheduled functions must continue to fall inside the wedding
+        # window; silently orphaning them outside the celebration is not allowed.
+        if {"start_date", "end_date"} & set(updates):
+            outside = [
+                event for event in store.events.values()
+                if event.get("wedding_id") == wedding_id
+                and (str(event.get("date", "")) < start_date or str(event.get("date", "")) > end_date)
+            ]
+            if outside:
+                raise RoyalKnotException(
+                    status_code=422,
+                    detail="Update the scheduled functions so they stay inside the new wedding dates.",
+                    error_code="WEDDING_DATE_CONFLICT",
+                )
+
         data["updated_at"] = now
         store.weddings[wedding_id] = data
         return WeddingResponse(**data)

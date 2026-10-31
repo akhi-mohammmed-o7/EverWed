@@ -26,8 +26,8 @@ async def couple_onboarding(
     account = store.users.get(current_user["user_id"])
     if not account or account.get("wedding_id"):
         raise PermissionDeniedError("This account already has a wedding workspace")
-    partner_one = account.get("partner_one_name")
-    partner_two = account.get("partner_two_name")
+    partner_one = (payload.partner_one_name or account.get("partner_one_name") or "").strip()
+    partner_two = (payload.partner_two_name or account.get("partner_two_name") or "").strip()
     if not partner_one or not partner_two or not account.get("phone"):
         raise RoyalKnotException(
             status_code=422,
@@ -52,6 +52,10 @@ async def couple_onboarding(
     functions = [item.model_dump() for item in payload.functions]
     if any(item["date"] < payload.start_date or item["date"] > payload.end_date for item in functions):
         raise RoyalKnotException(status_code=422, detail="Each function date must fall within the wedding dates.", error_code="FUNCTION_DATE_OUT_OF_RANGE")
+    account["partner_one_name"] = partner_one
+    account["partner_two_name"] = partner_two
+    account["name"] = f"{partner_one} & {partner_two}"
+    store.users[account["id"]] = account
     data = WeddingService.create_wedding(
         wedding, couple_user_id=account["id"], tradition=payload.tradition.strip() or None,
         regional_customization=payload.regional_customization.strip() or None, functions=functions,
@@ -97,14 +101,40 @@ async def get_wedding(wedding_id: str, _: dict = Depends(require_wedding_access)
     return APIResponse(success=True, data=data)
 
 
+COUPLE_EDITABLE_WEDDING_FIELDS = {
+    "title",
+    "bride_name",
+    "groom_name",
+    "destination",
+    "primary_venue",
+    "guest_estimate",
+    "theme",
+    "budget_allocated",
+    "start_date",
+    "end_date",
+    "tradition",
+    "regional_customization",
+}
+
+
 @router.patch("/{wedding_id}", response_model=APIResponse[WeddingResponse])
 async def update_wedding(
     wedding_id: str,
     payload: WeddingUpdate,
-    _: dict = Depends(require_role("admin", "planner")),
+    current_user: dict = Depends(require_role("admin", "planner", "couple")),
     __: dict = Depends(require_wedding_access),
 ):
-    """Update wedding specifications or status."""
+    """Update wedding specifications, traditions, or status.
+
+    Couples can maintain their own workspace preferences. Contract value and
+    lifecycle status remain agency-controlled fields.
+    """
+    if current_user.get("role") == "couple":
+        disallowed = set(payload.model_dump(exclude_unset=True)) - COUPLE_EDITABLE_WEDDING_FIELDS
+        if disallowed:
+            raise PermissionDeniedError(
+                "Couples can update wedding details and preferences only; contact your planner for contract changes."
+            )
     data = WeddingService.update_wedding(wedding_id, payload)
     return APIResponse(success=True, data=data)
 

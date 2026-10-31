@@ -222,7 +222,9 @@ def test_planner_application_requires_founder_approval(client: TestClient) -> No
     applicant = next(user for user in __import__("app.services.store", fromlist=["store"]).store.users.values() if user.get("email") == email)
     assert applicant["active"] is False
     assert applicant["approval_status"] == "pending"
-    assert client.post("/api/v1/auth/login", json={"username": email, "password": "Planner-Application-9!"}).status_code == 401
+    pending_login = client.post("/api/v1/auth/login", json={"username": email, "password": "Planner-Application-9!"})
+    assert pending_login.status_code == 403
+    assert "awaiting Founder approval" in pending_login.json()["error"]["message"]
     pending_reactivation = client.patch(f"/api/v1/auth/users/{applicant['uid']}/status", json={"active": True})
     assert pending_reactivation.status_code == 403
     approved = client.patch(f"/api/v1/auth/users/{applicant['uid']}/approval", json={"status": "approved"})

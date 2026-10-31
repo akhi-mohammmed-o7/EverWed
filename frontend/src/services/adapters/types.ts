@@ -1,5 +1,6 @@
 import type {
   User,
+  GuestImportResult,
   UserCreate,
   CoupleSignupRequest,
   LoginRequest,
@@ -75,6 +76,7 @@ export interface EventService {
   get(eventId: string): Promise<WeddingEvent>;
   create(weddingId: string, payload: EventCreate): Promise<WeddingEvent>;
   update(eventId: string, payload: EventUpdate): Promise<WeddingEvent>;
+  delete(eventId: string): Promise<void>;
 }
 
 export interface VendorService {
@@ -95,6 +97,7 @@ export interface TaskService {
   list(weddingId: string, filters?: { status?: string; category?: string; priority?: string; owner?: string }): Promise<Task[]>;
   create(weddingId: string, payload: TaskCreate): Promise<Task>;
   update(taskId: string, payload: TaskUpdate): Promise<Task>;
+  delete(taskId: string): Promise<void>;
 }
 
 export interface OperationService {
@@ -140,6 +143,7 @@ export interface GuestService {
   create(guest: Omit<Guest, "id">): Promise<Guest>;
   update(id: string, payload: Partial<Guest>): Promise<Guest>;
   delete(id: string): Promise<void>;
+  importCsv(weddingId: string, csv: string): Promise<GuestImportResult>;
 }
 
 export interface ServiceAdapter {

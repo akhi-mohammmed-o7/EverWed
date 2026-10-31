@@ -126,6 +126,8 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         "wedding_id": user.get("wedding_id"),
         "active": bool(user.get("active", False)),
         "approval_status": user.get("approval_status"),
+        "partner_one_name": user.get("partner_one_name"),
+        "partner_two_name": user.get("partner_two_name"),
     }
 
 

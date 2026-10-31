@@ -10,9 +10,10 @@ from datetime import datetime, timezone
 from typing import List
 
 from app.core.config import get_settings
-from app.core.exceptions import OdooRecordNotFound
+from app.core.exceptions import OdooRecordNotFound, RoyalKnotException
 from app.integrations.odoo.client import get_odoo_client
 from app.schemas.wedding import EventCreate, EventResponse, EventUpdate
+from app.services.plan_service import generate_event_tasks
 from app.services.store import store
 
 logger = logging.getLogger("royal_knot.event_service")
@@ -67,6 +68,10 @@ class EventService:
                 1 for e in store.events.values() if e.get("wedding_id") == wedding_id
             )
             store.weddings[wedding_id] = wedding
+            # Every selected function gets its own preparation tasks. The
+            # generator skips a function that already has them, so retries and
+            # later edits never duplicate or overwrite manual tasks.
+            generate_event_tasks(wedding_id, event_id)
         return EventResponse(**data)
 
     @staticmethod
@@ -89,6 +94,57 @@ class EventService:
         if not data:
             raise OdooRecordNotFound(detail=f"Event with ID '{event_id}' not found")
         return EventResponse(**data)
+
+    @staticmethod
+    def delete_event(event_id: str) -> None:
+        """Remove a function while preserving unrelated planning records.
+
+        Generated preparation tasks for this function are removed with it. A
+        manually added task is kept but unlinked so it does not become an
+        orphaned reference. Day-of operational records block the delete rather
+        than silently disappearing.
+        """
+        event = store.events.get(event_id)
+        if not event:
+            raise OdooRecordNotFound(detail=f"Event with ID '{event_id}' not found")
+
+        blocking = [
+            item for collection in (store.schedules, store.vendor_arrivals, store.operational_issues)
+            for item in collection.values()
+            if item.get("event_id") == event_id
+        ]
+        if blocking:
+            raise RoyalKnotException(
+                status_code=409,
+                detail="This function still has day-of schedule, arrival or issue records. Remove those first.",
+                error_code="EVENT_STILL_IN_USE",
+            )
+
+        with store.transaction(immediate=True):
+            now = datetime.now(timezone.utc)
+            for task in store.tasks.values():
+                if task.get("event_id") != event_id:
+                    continue
+                if task.get("generated_from_plan"):
+                    del store.tasks[task["id"]]
+                else:
+                    task["event_id"] = None
+                    task["updated_at"] = now
+                    store.tasks[task["id"]] = task
+            for quote in store.quotes.values():
+                if quote.get("event_id") == event_id:
+                    quote["event_id"] = None
+                    quote["updated_at"] = now
+                    store.quotes[quote["id"]] = quote
+            del store.events[event_id]
+            wedding = store.weddings.get(event["wedding_id"])
+            if wedding:
+                wedding["events_count"] = sum(
+                    1 for item in store.events.values()
+                    if item.get("wedding_id") == wedding["id"]
+                )
+                wedding["updated_at"] = now
+                store.weddings[wedding["id"]] = wedding
 
     @staticmethod
     def update_event(event_id: str, payload: EventUpdate) -> EventResponse:

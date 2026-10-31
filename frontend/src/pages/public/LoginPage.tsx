@@ -68,7 +68,7 @@ export const LoginPage: React.FC<{ portal: AuthPortal }> = ({ portal }) => {
         setError(`This account uses the ${correctPortal} portal. Sign in there to continue.`);
         return;
       }
-      navigate(account.role === "couple" ? account.wedding_id ? "/couple/dashboard" : "/couple/onboarding" : details.destination, { replace: true });
+      navigate(account.role === "couple" ? account.wedding_id ? "/couple/dashboard" : "/couple/builder" : details.destination, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to sign in. Check your details and try again.");
     } finally {

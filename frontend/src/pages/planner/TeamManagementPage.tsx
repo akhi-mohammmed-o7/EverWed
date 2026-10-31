@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { services } from "@/services";
 import type { User, UserCreate, UserRole, Wedding } from "@/types";
 
-const teamRoles: Exclude<UserRole, "admin">[] = ["planner", "team", "finance", "couple"];
+const teamRoles: Exclude<UserRole, "admin">[] = ["planner", "couple"];
 
 export const TeamManagementPage: React.FC = () => {
   const { user } = useAuth();

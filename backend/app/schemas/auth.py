@@ -29,6 +29,8 @@ class UserInfo(BaseModel):
     wedding_id: Optional[str] = None
     active: bool = True
     approval_status: Optional[str] = None
+    partner_one_name: Optional[str] = None
+    partner_two_name: Optional[str] = None
 
 
 class FirstFounderSetup(BaseModel):

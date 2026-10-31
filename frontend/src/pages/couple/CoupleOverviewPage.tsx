@@ -42,7 +42,7 @@ export const CoupleOverviewPage: React.FC = () => {
           {wedding.title}
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Curated under EverWed signature luxury management standard.
+            The details saved to your wedding workspace.
         </p>
       </div>
 
@@ -99,15 +99,20 @@ export const CoupleOverviewPage: React.FC = () => {
         {/* Agency Entourage Box */}
         <Card className="p-6 space-y-4">
           <div>
-            <h3 className="font-serif text-lg font-bold text-forest-900">Your Planning Team</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Your assigned wedding planner and support team.</p>
+            <h3 className="font-serif text-lg font-bold text-forest-900">Your planning team</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">The planner currently assigned to your wedding.</p>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="p-3 bg-ivory-50 rounded-xl border border-border">
-              <span className="text-[10px] font-bold text-gold-800 uppercase block">Senior Lead Planner</span>
-              <p className="font-bold text-forest-900 mt-0.5">{wedding.assigned_planner_email || "No planner assigned yet"}</p>
-              <p className="text-muted-foreground mt-0.5">Your Founder can assign a planner to this wedding.</p>
+              <span className="text-[10px] font-bold text-gold-800 uppercase block">Assigned planner</span>
+              <p className="font-bold text-forest-900 mt-0.5">{wedding.assigned_planner_name || wedding.assigned_planner_email || "No planner assigned yet"}</p>
+              {wedding.assigned_planner_name && wedding.assigned_planner_email && (
+                <p className="text-muted-foreground mt-0.5">{wedding.assigned_planner_email}</p>
+              )}
+              <p className="text-muted-foreground mt-0.5">
+                {wedding.assigned_planner_email ? "Your planner can update events, tasks and guests." : "The EverWed team will assign a planner to your wedding."}
+              </p>
             </div>
           </div>
         </Card>

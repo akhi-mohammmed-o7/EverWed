@@ -8,6 +8,8 @@ import {
   Calendar,
   CheckCircle2,
   Sparkles,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -17,13 +19,18 @@ import { services } from "@/services";
 import type { Task, TaskCreate, Wedding, WeddingEvent } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { TASK_CATEGORIES } from "@/lib/constants";
+import { useAuth } from "@/context/AuthContext";
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 export const TasksPage: React.FC = () => {
+  const { user } = useAuth();
   const [weddings, setWeddings] = useState<Wedding[]>([]);
-  const [selectedWid, setSelectedWid] = useState<string>("wed-royal-jaipur-001");
+  const [selectedWid, setSelectedWid] = useState<string>("");
   const [events, setEvents] = useState<WeddingEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // Filters
   const [selectedEventFilter, setSelectedEventFilter] = useState<string>("all");
@@ -33,11 +40,12 @@ export const TasksPage: React.FC = () => {
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [newTask, setNewTask] = useState<TaskCreate>({
     title: "",
-    category: "Venue",
-    owner: "Pooja Verma",
-    due_date: "2026-11-20",
+    category: "Planning",
+    owner: user?.name || "",
+    due_date: today(),
     priority: "medium",
     event_id: "",
     notes: "",
@@ -47,12 +55,13 @@ export const TasksPage: React.FC = () => {
     services.weddings.list().then((list) => {
       setWeddings(list);
       const savedId = localStorage.getItem("active_wedding_id");
-      if (savedId && list.some((w) => w.id === savedId)) {
-        setSelectedWid(savedId);
-      } else if (list.length > 0 && !selectedWid) {
-        setSelectedWid(list[0].id);
-      }
+      setSelectedWid((current) => {
+        if (current && list.some((w) => w.id === current)) return current;
+        if (savedId && list.some((w) => w.id === savedId)) return savedId;
+        return list[0]?.id || "";
+      });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadWeddingEvents = (wid: string) => {
@@ -71,7 +80,7 @@ export const TasksPage: React.FC = () => {
         category: categoryFilter === "all" ? undefined : categoryFilter,
       })
       .then((data) => setTasks(data))
-      .catch((err) => console.error(err))
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load tasks."))
       .finally(() => setIsLoading(false));
   };
 
@@ -84,32 +93,73 @@ export const TasksPage: React.FC = () => {
 
   const handleToggleStatus = async (taskId: string, currentStatus: string) => {
     const next = currentStatus === "done" ? "in_progress" : "done";
+    setError("");
     try {
       await services.tasks.update(taskId, { status: next });
       loadTasks(selectedWid);
-    } catch (err) {
-      console.error(err);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to save this task.");
     }
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWid || !newTask.title.trim()) return;
+    setError("");
     try {
-      await services.tasks.create(selectedWid, newTask);
+      if (editingTaskId) {
+        await services.tasks.update(editingTaskId, {
+          title: newTask.title,
+          category: newTask.category,
+          owner: newTask.owner,
+          due_date: newTask.due_date,
+          priority: newTask.priority,
+          event_id: newTask.event_id || null,
+          notes: newTask.notes ?? "",
+        });
+      } else {
+        await services.tasks.create(selectedWid, newTask);
+      }
       setIsModalOpen(false);
+      setEditingTaskId(null);
       setNewTask({
         title: "",
-        category: "Venue",
-        owner: "Pooja Verma",
-        due_date: "2026-11-20",
+        category: "Planning",
+        owner: user?.name || "",
+        due_date: today(),
         priority: "medium",
         event_id: "",
         notes: "",
       });
       loadTasks(selectedWid);
-    } catch (err) {
-      console.error(err);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to save this task.");
+    }
+  };
+
+  const openEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setNewTask({
+      title: task.title,
+      category: task.category,
+      owner: task.owner,
+      due_date: task.due_date,
+      priority: task.priority,
+      event_id: task.event_id || "",
+      notes: task.notes || "",
+    });
+    setIsModalOpen(true);
+    setError("");
+  };
+
+  const handleDeleteTask = async (task: Task) => {
+    if (!window.confirm(`Delete the task "${task.title}"?`)) return;
+    setError("");
+    try {
+      await services.tasks.delete(task.id);
+      loadTasks(selectedWid);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to delete this task.");
     }
   };
 
@@ -150,12 +200,15 @@ export const TasksPage: React.FC = () => {
               </option>
             ))}
           </select>
-          <Button variant="gold" size="sm" onClick={() => setIsModalOpen(true)} className="font-bold">
+          <Button variant="gold" size="sm" onClick={() => { setEditingTaskId(null); setIsModalOpen(true); }} className="font-bold">
             <Plus className="w-4 h-4 mr-1" />
             Add Custom Task
           </Button>
         </div>
       </div>
+
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
+      {weddings.length === 0 && <div className="rounded-xl border border-dashed border-border bg-white p-6 text-center text-sm text-muted-foreground">No weddings are assigned to you yet. Ask the Founder to assign one.</div>}
 
       {/* Ceremony-Driven Filter Tab Strip */}
       {events.length > 0 && (
@@ -304,6 +357,8 @@ export const TasksPage: React.FC = () => {
                 <div className="flex items-center gap-2.5">
                   <Badge status={task.priority} />
                   <Badge status={task.status} />
+                  <button type="button" onClick={() => openEditTask(task)} className="p-1 text-forest-700 hover:bg-ivory-100" title="Edit task"><Pencil className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => void handleDeleteTask(task)} className="p-1 text-rose-600 hover:bg-rose-50" title="Delete task"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             ))
@@ -314,8 +369,8 @@ export const TasksPage: React.FC = () => {
       {/* ── CREATE TASK MODAL ── */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Create Wedding Planning Task"
+        onClose={() => { setIsModalOpen(false); setEditingTaskId(null); }}
+        title={editingTaskId ? "Edit Wedding Planning Task" : "Create Wedding Planning Task"}
       >
         <form onSubmit={handleCreateTask} className="space-y-3.5 text-xs font-sans">
           <div>
@@ -415,7 +470,7 @@ export const TasksPage: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" variant="gold" size="sm" className="font-bold">
-              Create Task
+              {editingTaskId ? "Save changes" : "Create Task"}
             </Button>
           </div>
         </form>

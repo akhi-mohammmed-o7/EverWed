@@ -91,9 +91,13 @@ async def login(payload: LoginRequest, response: Response) -> APIResponse[LoginR
     """Verify a stored password hash and issue a signed, expiring session."""
     email = payload.username.strip().lower()
     user = next((item for item in store.users.values() if item.get("email") == email), None)
-    if not user or not user.get("active") or not verify_password(
-        payload.password.get_secret_value(), user.get("password_hash", "")
-    ):
+    if not user or not verify_password(payload.password.get_secret_value(), user.get("password_hash", "")):
+        raise AuthenticationError()
+    if not user.get("active"):
+        if user.get("role") == "planner" and user.get("approval_status") == "pending":
+            raise PermissionDeniedError("Your planner application is awaiting Founder approval.")
+        # Deactivated accounts are rejected with the same response as invalid
+        # credentials so their status is not disclosed to an unauthenticated caller.
         raise AuthenticationError()
 
     with store.transaction(immediate=True):

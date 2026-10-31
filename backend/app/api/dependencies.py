@@ -86,10 +86,10 @@ def ensure_wedding_access(user: dict, wedding_id: str) -> dict:
         if user_ids & assigned or wedding_id == user.get("wedding_id"):
             return wedding
     elif role == "couple":
-        if wedding_id == user.get("wedding_id") or (
-            user.get("email") and user.get("email", "").lower()
-            in {wedding.get("contact_email", "").lower(), wedding.get("bride_email", "").lower(), wedding.get("groom_email", "").lower()}
-        ):
+        # A couple may only reach the wedding explicitly linked to their own
+        # account. Matching a contact email would let an unrelated couple read
+        # records that merely mention the same address.
+        if wedding_id and wedding_id == user.get("wedding_id"):
             return wedding
 
     raise PermissionDeniedError("You do not have access to this wedding")

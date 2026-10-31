@@ -6,6 +6,8 @@ import {
   Users,
   Sparkles,
   Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -28,6 +30,7 @@ export const CoupleEventsPage: React.FC = () => {
   const [venue, setVenue] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   const loadEvents = async (weddingId: string) => setEvents(await services.events.listForWedding(weddingId));
 
@@ -37,14 +40,73 @@ export const CoupleEventsPage: React.FC = () => {
     Promise.all([services.weddings.get(activeId), loadEvents(activeId)]).then(([details]) => { setWedding(details); setVenue(details.primary_venue); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load wedding events.")).finally(() => setIsLoading(false));
   }, [user?.wedding_id]);
 
+  const openAddForm = () => {
+    setEditingEventId(null);
+    setEventName("");
+    setEventDate(wedding?.start_date || "");
+    setStartTime("10:00");
+    setEndTime("11:00");
+    setVenue(wedding?.primary_venue || "");
+    setShowForm(true);
+    setError("");
+  };
+
+  const startEdit = (item: WeddingEvent) => {
+    setEditingEventId(item.id);
+    setEventName(item.name);
+    setEventDate(item.date);
+    setStartTime(item.start_time);
+    setEndTime(item.end_time);
+    setVenue(item.venue_hall);
+    setShowForm(true);
+    setError("");
+  };
+
+  const deleteFunction = async (item: WeddingEvent) => {
+    if (!user?.wedding_id) return;
+    if (!window.confirm(`Delete the function "${item.name}"? Its generated planning tasks will be removed too.`)) return;
+    setError("");
+    try {
+      await services.events.delete(item.id);
+      await loadEvents(user.wedding_id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to delete this function.");
+    }
+  };
+
   const submitFunction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user?.wedding_id) return;
+    if (endTime <= startTime) {
+      setError("The function end time must be after its start time.");
+      return;
+    }
     setSaving(true); setError("");
     try {
-      await services.events.create(user.wedding_id, { name: eventName.trim(), date: eventDate, start_time: startTime, end_time: endTime, venue_hall: venue.trim(), coordinator_name: user.name, guest_estimate: wedding?.guest_estimate });
-      await loadEvents(user.wedding_id); setEventName(""); setShowForm(false);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to add this function."); }
+      if (editingEventId) {
+        await services.events.update(editingEventId, {
+          name: eventName.trim(),
+          date: eventDate,
+          start_time: startTime,
+          end_time: endTime,
+          venue_hall: venue.trim(),
+        });
+      } else {
+        await services.events.create(user.wedding_id, {
+          name: eventName.trim(),
+          date: eventDate,
+          start_time: startTime,
+          end_time: endTime,
+          venue_hall: venue.trim(),
+          coordinator_name: user.name,
+          guest_estimate: wedding?.guest_estimate,
+        });
+      }
+      await loadEvents(user.wedding_id);
+      setEventName("");
+      setEditingEventId(null);
+      setShowForm(false);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save this function."); }
     finally { setSaving(false); }
   };
 
@@ -57,17 +119,18 @@ export const CoupleEventsPage: React.FC = () => {
         <h1 className="font-serif text-2xl sm:text-3xl font-bold text-forest-900 mt-1">
           Multi-Day Ceremonies & Celebrations
         </h1>
-        <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">Your selected ceremonies and celebrations.</p><Button type="button" variant="gold" onClick={() => setShowForm((open) => !open)}><Plus className="h-4 w-4" /> Add function</Button></div>
+        <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">Your selected ceremonies and celebrations. Edit any function at any time.</p><Button type="button" variant="gold" onClick={() => (showForm ? setShowForm(false) : openAddForm())}><Plus className="h-4 w-4" /> Add function</Button></div>
       </div>
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
       {showForm && <Card className="p-4 sm:p-6"><form onSubmit={submitFunction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm font-medium">Function name<input required maxLength={120} value={eventName} onChange={(e) => setEventName(e.target.value)} className="input-base mt-1" /></label>
+        {editingEventId && <p className="text-xs font-semibold text-gold-800 sm:col-span-2 lg:col-span-3">Editing an existing function. Dates and times are validated by the server.</p>}
         <label className="text-sm font-medium">Date<input required type="date" min={wedding?.start_date} max={wedding?.end_date} value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="input-base mt-1" /></label>
         <label className="text-sm font-medium">Venue<input required maxLength={200} value={venue} onChange={(e) => setVenue(e.target.value)} className="input-base mt-1" /></label>
         <label className="text-sm font-medium">Starts<input required type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="input-base mt-1" /></label>
         <label className="text-sm font-medium">Ends<input required type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="input-base mt-1" /></label>
-        <div className="flex items-end"><Button type="submit" variant="gold" isLoading={saving}>Save function</Button></div>
+        <div className="flex items-end gap-2"><Button type="submit" variant="gold" isLoading={saving}>{editingEventId ? "Save changes" : "Save function"}</Button>{editingEventId && <Button type="button" variant="ghost" onClick={() => { setEditingEventId(null); setEventName(""); setShowForm(false); }}>Cancel</Button>}</div>
       </form></Card>}
 
       {isLoading ? (
@@ -83,11 +146,17 @@ export const CoupleEventsPage: React.FC = () => {
                     {index + 1}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-serif text-xl font-bold text-forest-900">{ev.name}</h3>
                       <Badge status={ev.status} />
+                      <button type="button" onClick={() => startEdit(ev)} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-forest-800 hover:bg-ivory-100">
+                        <Pencil className="h-3 w-3" /> Edit
+                      </button>
+                      <button type="button" onClick={() => void deleteFunction(ev)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
                     </div>
-                    <p className="text-xs text-forest-700 mt-1">{ev.notes || "Royal celebrations in progress."}</p>
+                    <p className="text-xs text-forest-700 mt-1">{ev.notes || "No notes added for this function."}</p>
 
                     <div className="flex flex-wrap items-center gap-4 text-xs text-forest-800 mt-3 font-medium">
                       <span className="flex items-center gap-1.5">

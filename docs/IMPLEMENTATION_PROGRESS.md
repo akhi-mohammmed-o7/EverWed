@@ -1,6 +1,6 @@
 # EverWed implementation progress
 
-Updated: 2026-11-01 (Planner approvals and Couple onboarding repair)
+Updated: 2026-11-01 (Simplification, role portals and core workflow delivery)
 
 ## Current phase
 
@@ -222,24 +222,131 @@ a foundation, not the complete wedding lifecycle requested in the master prompt.
   computer-use host could not reliably identify its active URL in the prior
   session. No browser test is claimed.
 
+### Couple workflow and checklist repair (final pass, 2026-11-01)
+
+- Fixed a data-integrity defect in `TaskService.update_task`: the API returned the
+  new status but never wrote the task back to SQLite, so checklist completion was
+  lost on reload and backend restart. Task updates now persist.
+- Couples can complete their own checklist items through
+  `PATCH /api/v1/tasks/{task_id}`. They may change only `status` and `notes`;
+  ownership/deadline edits remain restricted to agency roles.
+- Couple onboarding now generates the baseline checklist immediately instead of
+  waiting for an internal booking deposit that a couple cannot record. Each
+  created function additionally generates three preparation tasks. Generation is
+  idempotent and never duplicates, rewrites or removes existing/manual tasks.
+- Couples can edit their own wedding preferences (destination, venue, guest
+  estimate, budget, dates, theme, tradition and regional customs) and their
+  functions. Contract value and lifecycle status remain agency-controlled.
+  Function dates/times and the wedding date window are validated server-side.
+- Added the couple-only Wedding Builder at `/couple/builder` and a Couple
+  navigation entry. The staff creation wizard is now labelled "Create Wedding"
+  and is separate from the Couple Wedding Builder. Public landing-page builder
+  CTAs now lead to Couple registration or the Planner portal, not a protected
+  staff route.
+- Couple budget now uses `/api/v1/finance/weddings/{id}/summary` and keeps the
+  planned budget, agreed contract, amount paid, remaining balance, agreed vendor
+  total, supplier bills, vendor payments and outstanding payables distinct.
+- Replaced hardcoded dashboard decisions with real pending checklist tasks that
+  update through the API. Added guest editing and function editing; checklist and
+  guest failures are shown instead of silently rendering an empty screen.
+- Added `backend/scripts/provision_founder.py`. It reads credentials from
+  `EVERWED_FOUNDER_EMAIL` / `EVERWED_FOUNDER_PASSWORD`, never prints plaintext,
+  hashes the password and refuses to modify an existing account. The requested
+  local `admin@gmail.com` Founder was provisioned (uid 4, role admin); the
+  pre-existing Founder account was not changed.
+
+### Final verification (2026-11-01)
+
+- Backend: `python -m pytest -q -p no:cacheprovider` — **41 passed**, one upstream
+  Starlette/AnyIO deprecation warning. `python -m compileall -q app` passed.
+- Frontend: `npx tsc -b` passed; `npm run lint -- --quiet` passed with 0 errors
+  (156 existing warnings); `npm run build` passed. Vite emitted its usual
+  oversized-chunk warning (887.89 kB JS, 246.06 kB gzip).
+- Founder provisioning was run once and a read-only check confirmed
+  `role=admin`, `active=True` and `password_hash_verifies=True` without printing
+  the password or hash.
+- Browser and responsive checks at 360/390/768/1024/1280/1440 px were **not**
+  performed; no browser result is claimed.
+
+### Simplification and delivery pass (2026-11-01)
+
+- Removed advanced modules from navigation and routing: quote comparison,
+  day-of operations, financial statement, wedding risk radar and the separate
+  staff Wedding Builder. Their API/data layers remain intact but they are no
+  longer reachable screens.
+- The Wedding Builder is now Couple-only and is an eight-step sequential flow:
+  partner names, dates, tradition (including custom), regional customs,
+  functions (including custom functions and no forced ceremony), city/venue,
+  planned guest count and planned budget. The same flow edits saved details.
+- Added event deletion with safe cleanup: generated preparation tasks for the
+  deleted function are removed, manual tasks are unlinked, and day-of records
+  block deletion with a clear error instead of being silently discarded.
+- Added partner-name capture/editing to the Couple onboarding and wedding
+  record, and exposed partner names to the couple's profile.
+- Removed the contact-email fallback from wedding access. A Couple can only
+  access the wedding explicitly linked to their account.
+- Planner assignment now records the planner's name and transfers generated
+  task ownership to that planner. Couples see the actual assigned planner.
+- Restricted enquiry records and vendor writes to the Founder; Planners keep
+  read-only vendor access. Planner registration approval remains Founder-only.
+- Planner wedding workspace now has working guest CRUD (add, edit, delete,
+  RSVP, search, filter) alongside event and task management. Admin-only finance
+  summary remains on the same page.
+- Removed hard-coded demo coordinator names, dates, owners and wedding IDs from
+  the planner workspace and task screens.
+- Couples can update their planned budget from the Budget page; recorded
+  payments and expenses remain separate and are never fabricated.
+- Added tests for event deletion, partner-name editing, email-based access
+  denial, guest CRUD, planner assignment and Planner role restrictions.
+
+### Guest import, checklist CRUD and Founder management (2026-11-01)
+
+- Added guest duplicate prevention to create and edit, based on email, then
+  phone, then normalised name within the same wedding.
+- Added CSV bulk import at `POST /api/v1/weddings/{id}/guests/import`. It accepts
+  common header aliases, validates every row, skips duplicates, reports row
+  errors, and imports the valid rows in one transaction. The Couple guest page
+  exposes file upload plus a clear import summary.
+- Added add/edit/delete checklist tasks. Couples may manage task titles,
+  categories, due dates, priorities, notes and status; ownership and unrelated
+  fields stay protected. Planners can edit and delete tasks from both the task
+  list and the wedding workspace.
+- Added Founder wedding management for contact details, dates, venue, budget,
+  client package fee and lifecycle status. Dashboard contract value now reflects
+  an explicitly recorded package fee.
+- Added enquiry status editing and visible API errors, vendor edit support, and
+  removed the unused operations-issues panel from the Founder dashboard.
+- Added tests for CSV import/duplicates, checklist CRUD and persistence, Founder
+  wedding management, and dashboard contract value.
+
+### Latest verification (2026-11-01, guest/checklist pass)
+
+- Backend: `python -m pytest -q -p no:cacheprovider` — **50 passed**, one
+  upstream Starlette/AnyIO deprecation warning; `python -m compileall -q app`
+  passed.
+- Frontend: `npx tsc -b` passed; `npm run lint -- --quiet` passed with 0 errors
+  and 147 warnings; `npm run build` passed (805.36 kB JS, 231.12 kB gzip, with
+  Vite's existing large-chunk warning).
+- No browser or responsive-width check was performed in this pass, so no visual
+  result is claimed.
+
 ## Remaining work (master prompt)
 
-1. Add credential reset and role lifecycle audit; expand role-specific
-   financial access tests, including vendor payment bill scope. Account
-   activation/deactivation, Team & Access UI and planner assignment are
-   implemented.
+1. Add credential reset/role-change workflow and a complete role/IDOR access
+   matrix, including vendor-payment bill scope. Account activation/deactivation,
+   Team & Access UI and planner assignment are implemented.
 2. Add a local startup/restart verification on the configured user database to
    confirm the version-1 to version-2 money migration preserves existing data.
 3. Add explicit, traceable consultation and agreement CRUD/signing states.
 4. Add RFQ groups and quote line items, deliverables, availability, terms,
    additional costs and acceptance/rejection audit history.
-5. Finish guided wedding setup and persist ceremony, regional, accommodation,
-   transport, venue-per-event and custom destination data. Tradition, regional
-   notes and selected initial functions now persist; editing these preferences
-   after setup remains open.
-6. Generate additional tasks from selected ceremony/event functions without
-   duplicating or removing manually created tasks; add milestones and task
-   assignment UI. The inclusive baseline plan is implemented.
+5. Implemented: couples can edit wedding details, destination, venue, guest
+   count, budget, dates, theme, tradition, regional customs and functions after
+   setup at `/couple/builder`. Accommodation and transport requirement fields
+   are still not modelled.
+6. Implemented: baseline and per-function checklist tasks are generated
+   idempotently, and couples can complete tasks without altering planner-owned
+   fields. Milestones and a dedicated assignment UI remain open.
 7. Implement extras, settlement closure and verified financial summaries.
 8. Add founder metrics for enquiries, pipeline, planner workload and issue
    triage, with filters and drill-down. Clearly separate seeded demo data from

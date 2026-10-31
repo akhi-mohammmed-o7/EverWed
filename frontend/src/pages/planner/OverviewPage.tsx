@@ -58,7 +58,7 @@ export const OverviewPage: React.FC = () => {
             Season Operational & Financial Overview
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Consolidated metrics for active luxury destination weddings across Jaipur & Udaipur.
+            Consolidated metrics calculated from your saved weddings, tasks, events and payments.
           </p>
         </div>
 
@@ -68,10 +68,9 @@ export const OverviewPage: React.FC = () => {
               Review Enquiries
             </Button>
           </Link>
-          <Link to="/planner/operations">
+          <Link to="/planner/weddings">
             <Button variant="gold" size="sm" className="font-bold">
-              <Clock className="w-3.5 h-3.5 mr-1" />
-              Day-of Command Center
+              View Weddings
             </Button>
           </Link>
         </div>
@@ -127,14 +126,14 @@ export const OverviewPage: React.FC = () => {
       <Card>
         <CardHeader>
           <div>
-            <h3 className="font-serif text-lg font-bold text-forest-900">Active Weddings Portfolio & Profitability</h3>
+            <h3 className="font-serif text-lg font-bold text-forest-900">Weddings Portfolio & Profitability</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Live contract value, client receivables, vendor costs, and agency net gross margin.
             </p>
           </div>
-          <Link to="/planner/finance">
+          <Link to="/planner/weddings">
             <Button variant="ghost" size="sm" className="text-xs">
-              Full Statements <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              All Weddings <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </Link>
         </CardHeader>
@@ -225,8 +224,8 @@ export const OverviewPage: React.FC = () => {
               <Calendar className="w-4 h-4 text-gold-700" />
               <h3 className="font-serif text-base font-bold text-forest-900">Upcoming Wedding Events</h3>
             </div>
-            <Link to="/planner/operations">
-              <span className="text-xs text-gold-800 font-semibold hover:underline">Timeline</span>
+            <Link to="/planner/weddings">
+              <span className="text-xs text-gold-800 font-semibold hover:underline">Weddings</span>
             </Link>
           </CardHeader>
           <CardContent className="p-0 divide-y divide-border/60">
@@ -250,38 +249,6 @@ export const OverviewPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Active Operational Issues Alert Card */}
-      {data.recent_issues.length > 0 && (
-        <Card className="border-terracotta/40 bg-rose-50/30">
-          <CardHeader className="border-terracotta/20">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-terracotta" />
-              <h3 className="font-serif text-base font-bold text-forest-900">
-                Active On-Site Operational Issues ({data.recent_issues.length})
-              </h3>
-            </div>
-            <Link to="/planner/operations">
-              <Button variant="danger" size="sm" className="text-xs">
-                Go to Command Center
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3">
-            {data.recent_issues.map((iss) => (
-              <div key={iss.id} className="p-3 bg-white rounded-xl border border-terracotta/30 flex items-center justify-between text-xs">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Badge status={iss.severity} />
-                    <span className="font-bold text-forest-900">{iss.title}</span>
-                  </div>
-                  <p className="text-muted-foreground mt-1">Responsible Owner: {iss.owner}</p>
-                </div>
-                <Badge status={iss.status} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

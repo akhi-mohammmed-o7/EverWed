@@ -218,7 +218,14 @@ class TestRoyalKnotEndToEndWorkflow:
         # â”€â”€ 8. Task Management & Progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res_tasks = client.get(f"/api/v1/weddings/{wedding_id}/tasks")
         assert res_tasks.status_code == 200
-        assert res_tasks.json()["data"] == []  # Booking deposit has not been recorded yet
+        # Each of the four functions generates three preparation tasks. The
+        # baseline plan still waits for the recorded booking deposit below.
+        pre_deposit_tasks = res_tasks.json()["data"]
+        assert len(pre_deposit_tasks) == 12
+        assert not any(
+            task["title"] == "Confirm venue requirements, access and signed agreement"
+            for task in pre_deposit_tasks
+        )
 
         # â”€â”€ 9. Wedding Operations & Day-of Schedule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sched_item = {

@@ -24,7 +24,7 @@ export const Navbar: React.FC = () => {
 
   const isPlanner = location.pathname.startsWith("/planner");
   const isCouple = location.pathname.startsWith("/couple");
-  const isBuilder = location.pathname.startsWith("/builder");
+  const isBuilder = location.pathname.startsWith("/couple/builder");
 
   const handleLogout = async () => {
     await logout();
@@ -80,7 +80,7 @@ export const Navbar: React.FC = () => {
                 }`}
               >
                 <Shield className="w-3.5 h-3.5 text-gold-600" />
-                Planner Workspace
+                {user?.role === "admin" ? "Founder Portal" : "Planner Portal"}
               </Link>
             )}
 
@@ -94,12 +94,12 @@ export const Navbar: React.FC = () => {
               }`}
             >
               <Heart className="w-3.5 h-3.5 text-rose-500" />
-              Couple Sanctuary
+              Couple Portal
             </Link>}
 
-            {/* Wedding Builder */}
-            {(user?.role === "admin" || user?.role === "planner") && <Link
-              to="/builder"
+            {/* Couple-owned Wedding Builder (the only wedding builder) */}
+            {user?.role === "couple" && <Link
+              to="/couple/builder"
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 isBuilder
                   ? "bg-forest-800 text-ivory shadow-xs"
@@ -175,7 +175,7 @@ export const Navbar: React.FC = () => {
                 }`}
               >
                 <Shield className="w-4 h-4 text-gold" />
-                Planner Workspace
+                {user?.role === "admin" ? "Founder Portal" : "Planner Portal"}
               </Link>
             )}
 
@@ -187,11 +187,11 @@ export const Navbar: React.FC = () => {
               }`}
             >
               <Heart className="w-4 h-4 text-rose-500" />
-              Couple Sanctuary
+              Couple Portal
             </Link>}
 
-            {(user?.role === "admin" || user?.role === "planner") && <Link
-              to="/builder"
+            {user?.role === "couple" && <Link
+              to="/couple/builder"
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold ${
                 isBuilder ? "bg-forest-800 text-ivory" : "text-forest-800 hover:bg-ivory-100"

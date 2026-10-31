@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   DollarSign,
   Sparkles,
-  ShoppingBag,
+  Palette,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
 import { services } from "@/services";
@@ -17,11 +17,11 @@ import type { Wedding } from "@/types";
 const coupleTabs = [
   { label: "Dashboard", icon: Sparkles, path: "/couple/dashboard" },
   { label: "Wedding Overview", icon: Heart, path: "/couple/overview" },
+  { label: "Wedding Builder", icon: Palette, path: "/couple/builder" },
   { label: "Ceremonies & Events", icon: Calendar, path: "/couple/events" },
   { label: "Guest List & RSVP", icon: Users, path: "/couple/guests" },
   { label: "Planning Checklist", icon: CheckCircle2, path: "/couple/checklist" },
   { label: "Budget & Payments", icon: DollarSign, path: "/couple/budget" },
-  { label: "Curated Vendors", icon: ShoppingBag, path: "/couple/vendors" },
 ];
 
 export const CoupleLayout: React.FC = () => {
@@ -71,13 +71,13 @@ export const CoupleLayout: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gold/20 text-gold text-xs font-semibold mb-2 border border-gold/30">
               <Sparkles className="w-3.5 h-3.5" />
-              Couple Sanctuary
+              Couple portal
             </div>
             <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
-              {weddingTitle}: {coupleTitle}
+              {wedding ? `${weddingTitle}: ${coupleTitle}` : "Set up your wedding"}
             </h1>
             <p className="text-xs md:text-sm text-ivory-300 mt-1">
-              {locationText} • {datesText} • {guestText}
+              {wedding ? `${locationText} • ${datesText} • ${guestText}` : "Complete the Wedding Builder to create your wedding workspace."}
             </p>
           </div>
 
@@ -88,7 +88,7 @@ export const CoupleLayout: React.FC = () => {
       <div className="bg-white border-b border-border sticky top-16 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto py-2 no-scrollbar">
-            {coupleTabs.map((tab) => {
+            {(user?.wedding_id ? coupleTabs : coupleTabs.filter((tab) => tab.path === "/couple/builder")).map((tab) => {
               const Icon = tab.icon;
               const isActive = location.pathname === tab.path;
               return (

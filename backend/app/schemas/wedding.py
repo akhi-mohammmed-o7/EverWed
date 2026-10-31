@@ -32,16 +32,35 @@ class WeddingCreate(WeddingBase):
 
 
 class WeddingUpdate(BaseModel):
-    title: Optional[str] = None
-    primary_venue: Optional[str] = None
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    bride_name: Optional[str] = Field(None, min_length=1, max_length=120)
+    groom_name: Optional[str] = Field(None, min_length=1, max_length=120)
+    contact_phone: Optional[str] = Field(None, min_length=5, max_length=40)
+    contact_email: Optional[str] = Field(None, min_length=3, max_length=254)
+    destination: Optional[str] = Field(None, min_length=1, max_length=160)
+    primary_venue: Optional[str] = Field(None, min_length=1, max_length=200)
     package_type: Optional[str] = None
-    guest_estimate: Optional[int] = None
-    theme: Optional[str] = None
-    budget_allocated: Optional[float] = None
+    guest_estimate: Optional[int] = Field(None, gt=0, le=100000)
+    theme: Optional[str] = Field(None, max_length=160)
+    budget_allocated: Optional[float] = Field(None, ge=0)
     package_fee: Optional[float] = Field(None, ge=0)
     status: Optional[str] = None  # planning, in_progress, completed, settled
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    tradition: Optional[str] = Field(None, max_length=120)
+    regional_customization: Optional[str] = Field(None, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.start_date is not None and self.end_date is not None:
+            try:
+                start = date.fromisoformat(self.start_date)
+                end = date.fromisoformat(self.end_date)
+            except ValueError as exc:
+                raise ValueError("Wedding dates must use YYYY-MM-DD format") from exc
+            if end < start:
+                raise ValueError("Wedding end date must be on or after the start date")
+        return self
 
 
 class WeddingPlannerAssignment(BaseModel):
@@ -49,6 +68,8 @@ class WeddingPlannerAssignment(BaseModel):
 
 
 class CoupleWeddingOnboarding(BaseModel):
+    partner_one_name: Optional[str] = Field(None, min_length=1, max_length=120)
+    partner_two_name: Optional[str] = Field(None, min_length=1, max_length=120)
     destination: str = Field(min_length=1, max_length=160)
     primary_venue: str = Field(min_length=1, max_length=200)
     guest_estimate: int = Field(gt=0, le=100000)
@@ -95,6 +116,7 @@ class WeddingResponse(WeddingBase):
     tasks_count: int = 0
     tasks_completed: int = 0
     assigned_planner_email: Optional[str] = None
+    assigned_planner_name: Optional[str] = None
     tradition: Optional[str] = None
     regional_customization: Optional[str] = None
     total_agreed_vendor_cost: float = 0.0

@@ -27,6 +27,7 @@ export const CoupleDashboardPage: React.FC = () => {
   const [events, setEvents] = useState<WeddingEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -56,14 +57,30 @@ export const CoupleDashboardPage: React.FC = () => {
     };
   }, [user?.wedding_id]);
 
-  if (isLoading || !wedding) {
+  const toggleTask = async (task: Task) => {
+    if (!wedding) return;
+    setError("");
+    try {
+      await services.tasks.update(task.id, { status: task.status === "done" ? "in_progress" : "done" });
+      setTasks(await services.tasks.list(wedding.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to save this checklist change.");
+    }
+  };
+
+  if (isLoading) {
     return <div className="p-12 text-center text-xs text-muted-foreground">Opening your couple sanctuary...</div>;
+  }
+
+  if (!wedding) {
+    return <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">We could not load your wedding workspace. Please refresh or contact your planner.</div>;
   }
 
   const daysLeft = daysUntil(wedding.start_date);
   const completedTasks = tasks.filter((t) => t.status === "done").length;
   const progressPercent = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
   const nextEvent = events[0];
+  const pendingTasks = tasks.filter((task) => task.status !== "done").slice(0, 3);
 
   return (
     <div className="space-y-8 font-sans">
@@ -74,7 +91,7 @@ export const CoupleDashboardPage: React.FC = () => {
           <div className="space-y-2 max-w-xl">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/20 text-gold text-xs font-bold uppercase tracking-wider border border-gold/40">
               <Sparkles className="w-3.5 h-3.5" />
-              Royal Union Journey
+              Your wedding planning
             </span>
             <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">
               {wedding.bride_name} & {wedding.groom_name}
@@ -106,13 +123,13 @@ export const CoupleDashboardPage: React.FC = () => {
         <StatCard
           title="Ceremonies"
           value={events.length}
-          subtitle="Multi-day royal events"
+          subtitle="Functions on your schedule"
           icon={<Calendar className="w-5 h-5 text-gold-700" />}
         />
         <StatCard
           title="Package Tier"
           value={wedding.package_type}
-          subtitle="Full-service coordination"
+          subtitle="Your saved planning package"
           icon={<Sparkles className="w-5 h-5 text-forest-800" />}
         />
         <StatCard
@@ -122,6 +139,8 @@ export const CoupleDashboardPage: React.FC = () => {
           icon={<DollarSign className="w-5 h-5 text-emerald-700" />}
         />
       </div>
+
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
 
       {/* Two-Column Grid: Next Event & Priority Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -169,31 +188,31 @@ export const CoupleDashboardPage: React.FC = () => {
         <div className="lg:col-span-5">
           <Card className="p-6 h-full flex flex-col justify-between">
             <div>
-              <h3 className="font-serif text-lg font-bold text-forest-900">Pending Decisions for Couple</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Key items awaiting your feedback.</p>
+              <h3 className="font-serif text-lg font-bold text-forest-900">Your next checklist items</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Real tasks from your saved wedding plan.</p>
 
               <div className="mt-4 space-y-3 text-xs">
-                <div className="p-3 bg-ivory-50 rounded-xl border border-border flex items-start gap-3">
-                  <input type="checkbox" className="rounded mt-0.5" defaultChecked />
-                  <div>
-                    <p className="font-semibold text-forest-900">Approve Tasting Banquet Menu</p>
-                    <p className="text-[11px] text-muted-foreground">7-course Marwari feast signed off</p>
+                {pendingTasks.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    {tasks.length === 0
+                      ? "Your checklist is generated from your wedding setup and functions. Open the Wedding Builder to add a function."
+                      : "You have completed every checklist task."}
+                  </p>
+                ) : pendingTasks.map((task) => (
+                  <div key={task.id} className="flex items-start gap-3 rounded-xl border border-border bg-ivory-50 p-3">
+                    <input
+                      type="checkbox"
+                      checked={task.status === "done"}
+                      onChange={() => void toggleTask(task)}
+                      className="mt-0.5 rounded"
+                      aria-label={`Mark ${task.title} complete`}
+                    />
+                    <div>
+                      <p className="font-semibold text-forest-900">{task.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{task.category} • Due {formatDate(task.due_date)} • {task.owner}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="p-3 bg-ivory-50 rounded-xl border border-border flex items-start gap-3">
-                  <input type="checkbox" className="rounded mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-forest-900">Gold-Embossed Welcome Letter Proof</p>
-                    <p className="text-[11px] text-muted-foreground">Awaiting bride & groom sign-off on design</p>
-                  </div>
-                </div>
-                <div className="p-3 bg-ivory-50 rounded-xl border border-border flex items-start gap-3">
-                  <input type="checkbox" className="rounded mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-forest-900">Sangeet Family Choreography Songs</p>
-                    <p className="text-[11px] text-muted-foreground">DJ Kabir requesting final 6-song medley list</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 

@@ -41,7 +41,7 @@ export const CoupleSignupPage: React.FC = () => {
         password,
         terms_accepted: true,
       });
-      navigate("/couple/onboarding", { replace: true, state: { registered: true } });
+      navigate("/couple/builder", { replace: true, state: { registered: true } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to create the couple account.");
     } finally {

@@ -7,7 +7,6 @@ import {
   Users,
   DollarSign,
   ArrowRight,
-  Plus,
   MapPin,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
@@ -44,12 +43,6 @@ export const WeddingsPage: React.FC = () => {
           </p>
         </div>
 
-        <Link to="/builder">
-          <Button variant="gold" className="font-bold">
-            <Plus className="w-4 h-4 mr-1.5" />
-            New Wedding Workspace
-          </Button>
-        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

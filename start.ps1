@@ -1,6 +1,6 @@
-# EverWed / Royal Knot OS - PowerShell Launcher
+# EverWed - PowerShell Launcher
 Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "      EverWed (ShaadiOS) - Royal Knot OS Launcher" -ForegroundColor Yellow
+Write-Host "                    EverWed Launcher" -ForegroundColor Yellow
 Write-Host "========================================================" -ForegroundColor Cyan
 
 $root = $PSScriptRoot

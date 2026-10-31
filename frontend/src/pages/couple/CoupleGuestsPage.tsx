@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Users,
   Plus,
@@ -9,6 +9,9 @@ import {
   Crown,
   Utensils,
   Trash2,
+  Pencil,
+  AlertCircle,
+  Upload,
 } from "lucide-react";
 import { Card, CardHeader, CardContent, StatCard } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -28,29 +31,44 @@ export const CoupleGuestsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sideFilter, setSideFilter] = useState<string>("all");
   const [rsvpFilter, setRsvpFilter] = useState<string>("all");
+  const [error, setError] = useState("");
+  const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  const [importErrors, setImportErrors] = useState<Array<{ row: number; message: string }>>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newGuest, setNewGuest] = useState<Omit<Guest, "id">>({
-    wedding_id: getActiveWeddingId(),
+    wedding_id: user?.wedding_id || getActiveWeddingId(),
     name: "",
     email: "",
     phone: "",
-    side: "bride",
-    rsvp_status: "confirmed",
-    meal_preference: "Vegetarian",
+    side: "mutual",
+    rsvp_status: "pending",
+    meal_preference: "",
     table_number: "",
     is_vip: false,
     plus_ones: 0,
     notes: "",
   });
 
-  const loadGuests = () => {
+  const loadGuests = async () => {
+    const weddingId = user?.wedding_id;
+    if (!weddingId) {
+      setGuests([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
-    services.guests
-      .list(user?.wedding_id || getActiveWeddingId())
-      .then((data) => setGuests(data))
-      .catch((err) => console.error(err))
-      .finally(() => setIsLoading(false));
+    setError("");
+    try {
+      setGuests(await services.guests.list(weddingId));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load your guest list.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -58,37 +76,114 @@ export const CoupleGuestsPage: React.FC = () => {
     if (user?.wedding_id) services.weddings.get(user.wedding_id).then(setWedding).catch((error) => console.error("Unable to load wedding estimate:", error));
   }, [user?.wedding_id]);
 
+  const resetGuestForm = () => {
+    setEditingGuestId(null);
+    setNewGuest({
+      wedding_id: user?.wedding_id || getActiveWeddingId(),
+      name: "",
+      email: "",
+      phone: "",
+      side: "bride",
+      rsvp_status: "pending",
+      meal_preference: "Vegetarian",
+      table_number: "",
+      is_vip: false,
+      plus_ones: 0,
+      notes: "",
+    });
+  };
+
   const handleAddGuest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGuest.name.trim()) return;
+    if (!user?.wedding_id) {
+      setError("Your wedding workspace is not ready yet.");
+      return;
+    }
+    setError("");
     try {
-      await services.guests.create(newGuest);
+      if (editingGuestId) {
+        await services.guests.update(editingGuestId, {
+          name: newGuest.name.trim(),
+          email: (newGuest.email || "").trim(),
+          phone: (newGuest.phone || "").trim(),
+          side: newGuest.side,
+          rsvp_status: newGuest.rsvp_status,
+          meal_preference: (newGuest.meal_preference || "").trim(),
+          table_number: (newGuest.table_number || "").trim(),
+          is_vip: newGuest.is_vip,
+          plus_ones: newGuest.plus_ones,
+          notes: (newGuest.notes || "").trim(),
+        });
+      } else {
+        await services.guests.create({ ...newGuest, wedding_id: user.wedding_id });
+      }
       setIsAddModalOpen(false);
-      setNewGuest({
-        wedding_id: getActiveWeddingId(),
-        name: "",
-        email: "",
-        phone: "",
-        side: "bride",
-        rsvp_status: "confirmed",
-        meal_preference: "Vegetarian",
-        table_number: "",
-        is_vip: false,
-        plus_ones: 0,
-        notes: "",
-      });
-      loadGuests();
-    } catch (err) {
-      console.error(err);
+      resetGuestForm();
+      await loadGuests();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to save this guest.");
     }
   };
 
+  const handleCsvImport = async (file: File | undefined) => {
+    if (!file) return;
+    if (!user?.wedding_id) {
+      setError("Your wedding workspace is not ready yet.");
+      return;
+    }
+    setImportBusy(true);
+    setError("");
+    setImportMessage("");
+    setImportErrors([]);
+    try {
+      const csv = await file.text();
+      const result = await services.guests.importCsv(user.wedding_id, csv);
+      setImportMessage(
+        `Imported ${result.created} guest${result.created === 1 ? "" : "s"}. Skipped ${result.skipped} duplicate${result.skipped === 1 ? "" : "s"}. ${result.error_count} row${result.error_count === 1 ? "" : "s"} failed validation.`
+      );
+      setImportErrors(result.errors);
+      await loadGuests();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to import this CSV file.");
+    } finally {
+      setImportBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const openAddGuest = () => {
+    resetGuestForm();
+    setIsAddModalOpen(true);
+    setError("");
+  };
+
+  const openEditGuest = (guest: Guest) => {
+    setEditingGuestId(guest.id);
+    setNewGuest({
+      wedding_id: guest.wedding_id,
+      name: guest.name,
+      email: guest.email || "",
+      phone: guest.phone || "",
+      side: guest.side,
+      rsvp_status: guest.rsvp_status,
+      meal_preference: guest.meal_preference || "",
+      table_number: guest.table_number || "",
+      is_vip: guest.is_vip,
+      plus_ones: guest.plus_ones,
+      notes: guest.notes || "",
+    });
+    setIsAddModalOpen(true);
+    setError("");
+  };
+
   const handleDelete = async (id: string) => {
+    setError("");
     try {
       await services.guests.delete(id);
-      loadGuests();
-    } catch (err) {
-      console.error(err);
+      await loadGuests();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to remove this guest.");
     }
   };
 
@@ -106,7 +201,7 @@ export const CoupleGuestsPage: React.FC = () => {
   const totalHeadcount = guests.reduce((sum, g) => sum + 1 + (g.plus_ones || 0), 0);
   const confirmedCount = guests.filter((g) => g.rsvp_status === "confirmed").length;
   const pendingCount = guests.filter((g) => g.rsvp_status === "pending").length;
-  const vipCount = guests.filter((g) => g.is_vip).length;
+  const declinedCount = guests.filter((g) => g.rsvp_status === "declined").length;
 
   return (
     <div className="space-y-6 font-sans">
@@ -123,11 +218,44 @@ export const CoupleGuestsPage: React.FC = () => {
           </p>
         </div>
 
-        <Button variant="gold" onClick={() => setIsAddModalOpen(true)} className="font-bold">
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add guest
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => void handleCsvImport(event.target.files?.[0])}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} isLoading={importBusy} className="font-bold">
+            <Upload className="w-4 h-4 mr-1.5" />
+            Import CSV
+          </Button>
+          <Button variant="gold" onClick={openAddGuest} className="font-bold">
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add guest
+          </Button>
+        </div>
       </div>
+
+      {error && (
+        <div role="alert" className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+          <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+        </div>
+      )}
+
+      {importMessage && (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <p>{importMessage}</p>
+          <p className="mt-1 text-xs">CSV columns accepted: name, email, phone, side, rsvp, plus ones, meal, table number, vip, notes.</p>
+          {importErrors.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-xs">
+              {importErrors.map((issue) => (
+                <li key={`${issue.row}-${issue.message}`}>Row {issue.row}: {issue.message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -151,10 +279,10 @@ export const CoupleGuestsPage: React.FC = () => {
           icon={<Clock className="w-5 h-5 text-amber-600" />}
         />
         <StatCard
-          title="VIP guests"
-          value={vipCount}
-          subtitle="Special security & concierge"
-          icon={<Crown className="w-5 h-5 text-gold-700" />}
+          title="Declined responses"
+          value={declinedCount}
+          subtitle="Guests not attending"
+          icon={<XCircle className="w-5 h-5 text-rose-600" />}
         />
       </div>
 
@@ -219,6 +347,15 @@ export const CoupleGuestsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
+              {!isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    {guests.length === 0
+                      ? "No guests recorded yet. Add your first guest invitation."
+                      : "No guests match these filters."}
+                  </td>
+                </tr>
+              )}
               {filtered.map((g) => (
                 <tr key={g.id} className="hover:bg-ivory-50/70 transition-colors">
                   <td className="py-3.5 px-4">
@@ -245,7 +382,14 @@ export const CoupleGuestsPage: React.FC = () => {
                   </td>
                   <td className="py-3.5 px-4 font-semibold text-forest-900">{g.plus_ones > 0 ? `+${g.plus_ones}` : "0"}</td>
                   <td className="py-3.5 px-4 text-muted-foreground italic max-w-xs truncate">{g.notes || "-"}</td>
-                  <td className="py-3.5 px-4 text-right">
+                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => openEditGuest(g)}
+                      className="p-1 text-forest-700 hover:bg-ivory-100 rounded transition-colors"
+                      title="Edit guest"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleDelete(g.id)}
                       className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-colors"
@@ -264,9 +408,9 @@ export const CoupleGuestsPage: React.FC = () => {
       {/* Add Guest Modal */}
       <Modal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Add guest invitation"
-        subtitle="Record contact details, banquet meal choice, and table seating."
+        onClose={() => { setIsAddModalOpen(false); resetGuestForm(); }}
+        title={editingGuestId ? "Edit guest" : "Add guest invitation"}
+        subtitle="Record contact details, RSVP, meal choice, and table seating."
       >
         <form onSubmit={handleAddGuest} className="space-y-3.5 text-xs">
           <div>
@@ -347,6 +491,7 @@ export const CoupleGuestsPage: React.FC = () => {
                 value={newGuest.meal_preference}
                 onChange={(e) => setNewGuest({ ...newGuest, meal_preference: e.target.value })}
               >
+                <option value="">No preference</option>
                 <option value="Vegetarian">Vegetarian</option>
                 <option value="Jain Vegetarian">Jain Vegetarian</option>
                 <option value="Non-Vegetarian">Non-Vegetarian</option>
@@ -357,7 +502,7 @@ export const CoupleGuestsPage: React.FC = () => {
               <label className="label-base">Table Assignment</label>
               <input
                 type="text"
-                placeholder="e.g. Royal A1"
+                placeholder="e.g. Table A1"
                 className="input-base"
                 value={newGuest.table_number || ""}
                 onChange={(e) => setNewGuest({ ...newGuest, table_number: e.target.value })}
@@ -373,15 +518,15 @@ export const CoupleGuestsPage: React.FC = () => {
               onChange={(e) => setNewGuest({ ...newGuest, is_vip: e.target.checked })}
             />
             <label htmlFor="vipCheck" className="text-xs font-semibold text-forest-900 cursor-pointer">
-              Mark as VIP Guest (Priority Escort & Protocol)
+              Mark as VIP guest
             </label>
           </div>
           <div className="flex justify-end gap-2 pt-3">
-            <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => { setIsAddModalOpen(false); resetGuestForm(); }}>
               Cancel
             </Button>
             <Button type="submit" variant="gold">
-              Save Guest
+              {editingGuestId ? "Save changes" : "Save guest"}
             </Button>
           </div>
         </form>

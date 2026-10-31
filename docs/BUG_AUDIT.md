@@ -58,6 +58,19 @@ read as proof that every workflow is complete.
 | Auth and application modules retain old Royal Knot/ShaadiOS labels and encoding artifacts | Multiple backend files and README | Inconsistent product identity and mojibake reduce polish and can confuse operators. | Clean touched files selectively; avoid unrelated broad rewrites. | Text scan and frontend build. |
 | Production security headers and rate-limits are not configured | `backend/app/main.py` | Current local-first service has CORS but no explicit security headers or rate-limits. | Apply an appropriate local deployment baseline without adding unnecessary services. | Header and rate-limit checks. |
 
+## Final repair pass (2026-11-01)
+
+| Finding | Affected files | Root cause and user impact | Correction | Verification |
+| --- | --- | --- | --- | --- |
+| Checklist completion was never persisted | `backend/app/services/task_service.py` | `update_task` returned the changed status but did not write the task back to SQLite. Every reload or backend restart restored the old status. | Persist the updated task through `store.tasks[task_id] = task` before returning. | Couple toggle test re-reads the API and a newly opened `Store`; both show `done`. |
+| Couples received a 403 when completing checklist items | `backend/app/api/routes/tasks.py` | The task PATCH endpoint allowed only admin/planner/team, so Couple checklist checkboxes could never save. | Allow `couple` with wedding access, restricted to `status` and `notes`. | Test verifies 200 for status, 403 for owner changes. |
+| Couple onboarding generated no checklist | `backend/app/services/plan_service.py`, `wedding_service.py` | The baseline plan was tied to an internal booking deposit that only agency users can record. Couples saw an empty checklist. | Generate the baseline plan during couple onboarding; generate three preparation tasks per function; skip existing source keys. | Test verifies 29+ baseline tasks, event tasks, idempotency and restart persistence. |
+| Couples could not edit functions or wedding preferences | `events.py`, `weddings.py`, `wedding_service.py`, schemas | PATCH routes required staff roles, so the couple UI could not correct dates, venue, traditions or functions. | Allow Couple access with ownership checks; restrict agency-only fields; validate dates/times server-side. | Tests cover successful edits, invalid time, out-of-range date, contract-field denial and date conflict. |
+| Couple budget mixed planned budget with contract revenue | `frontend/src/pages/couple/CoupleBudgetPage.tsx` | Page used `package_fee` (often unset for couples) as "contract", showed ₹0 and omitted vendor costs/payments. | Use the wedding financial summary and show planned budget, contract, paid, remaining, agreed/billed/paid/outstanding vendor figures separately. | TypeScript/lint/build pass; API summary already covered by finance tests. |
+| Dashboard contained hardcoded decisions | `frontend/src/pages/couple/CoupleDashboardPage.tsx` | Banquet menu, welcome letter and Sangeet items were static demo text with nonfunctional checkboxes. | Show real pending checklist tasks and persist toggles through the API. | Backend task persistence tests plus frontend build. |
+| Guest records could not be edited | `frontend/src/pages/couple/CoupleGuestsPage.tsx` | Only create/delete were wired; no edit action existed. | Added edit modal using the scoped PATCH endpoint and visible load/save errors. | Guest CRUD backend tests already exist; frontend checks pass. |
+| Public builder CTAs led to a protected staff route | `frontend/src/pages/public/LandingPage.tsx`, `Navbar.tsx` | Landing "wedding wizard" links pointed at `/builder`, which redirects anonymous users to login or rejects couples. | Point public CTAs to `/register/couple` or `/login/planner`; add `/couple/builder` and label the staff wizard "Create Wedding". | Frontend typecheck/lint/build; browser not run. |
+
 ## Audit state
 
 SQLite is the approved primary database. The existing repository uses
@@ -69,3 +82,7 @@ verification has not been performed.
 
 This is a working audit, not a declaration that every finding is fixed. Mark a
 finding complete only after the stated correction and verification are done.
+The final repair pass above is limited to the couple workflow, checklist
+persistence, couple-safe editing and public navigation. Agreement lifecycle,
+RFQ line items, extras/settlement, credential reset, the full role matrix and
+browser/responsive verification remain open.

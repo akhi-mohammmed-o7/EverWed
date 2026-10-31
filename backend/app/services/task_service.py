@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 from typing import List, Optional
 
 from app.core.config import get_settings
-from app.core.exceptions import OdooRecordNotFound
+from app.core.exceptions import OdooRecordNotFound, RoyalKnotException
 from app.integrations.odoo.client import get_odoo_client
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from app.services.store import store
@@ -24,6 +24,14 @@ class TaskService:
         wedding = store.weddings.get(wedding_id)
         if not wedding:
             raise OdooRecordNotFound(detail=f"Parent Wedding '{wedding_id}' does not exist")
+        if payload.event_id:
+            event = store.events.get(payload.event_id)
+            if not event or event.get("wedding_id") != wedding_id:
+                raise RoyalKnotException(
+                    status_code=422,
+                    detail="The selected event does not belong to this wedding.",
+                    error_code="TASK_EVENT_MISMATCH",
+                )
 
         task_id = f"task-{uuid.uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)
@@ -101,6 +109,14 @@ class TaskService:
         task = store.tasks.get(task_id)
         if not task:
             raise OdooRecordNotFound(detail=f"Task '{task_id}' not found")
+        if payload.event_id:
+            event = store.events.get(payload.event_id)
+            if not event or event.get("wedding_id") != task.get("wedding_id"):
+                raise RoyalKnotException(
+                    status_code=422,
+                    detail="The selected event does not belong to this wedding.",
+                    error_code="TASK_EVENT_MISMATCH",
+                )
 
         now = datetime.now(timezone.utc)
         for field, val in payload.model_dump(exclude_unset=True).items():
@@ -125,5 +141,15 @@ class TaskService:
 
         today_str = date.today().isoformat()
         task["is_overdue"] = (task.get("due_date", "") < today_str and task.get("status") != "done")
+        # Persist the update. Without this write the API returned the new
+        # status while SQLite kept the old one, so checklist completion was
+        # lost on every reload and restart.
+        store.tasks[task_id] = task
         return TaskResponse(**task)
+
+    @staticmethod
+    def delete_task(task_id: str) -> None:
+        if task_id not in store.tasks:
+            raise OdooRecordNotFound(detail=f"Task '{task_id}' not found")
+        del store.tasks[task_id]
 

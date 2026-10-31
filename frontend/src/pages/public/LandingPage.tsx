@@ -136,7 +136,7 @@ export const LandingPage: React.FC = () => {
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
 
               {/* Primary: champagne-gold bg + deep burgundy text */}
-              <Link to="/builder" style={{ position: "relative", zIndex: 10 }}>
+              <Link to="/register/couple" style={{ position: "relative", zIndex: 10 }}>
                 <MagneticButton
                   variant="gold"
                   size="lg"
@@ -149,13 +149,13 @@ export const LandingPage: React.FC = () => {
                     boxShadow: "0 8px 32px rgba(201,161,74,0.28)",
                   }}
                 >
-                  <span>Launch Wedding Setup Wizard</span>
+                  <span>Begin Couple Registration</span>
                   <ArrowRight className="w-4 h-4 ml-1.5" />
                 </MagneticButton>
               </Link>
 
               {/* Secondary: dark-burgundy tint + champagne border + ivory text */}
-              <Link to="/planner" style={{ position: "relative", zIndex: 10 }}>
+              <Link to="/login/planner" style={{ position: "relative", zIndex: 10 }}>
                 <MagneticButton
                   variant="secondary"
                   size="lg"
@@ -246,7 +246,7 @@ export const LandingPage: React.FC = () => {
           {WEDDING_TRADITIONS.map((tradition) => (
             <StaggerItem key={tradition.id}>
               <Link
-                to={`/builder?tradition=${tradition.id}`}
+                to="/register/couple"
                 className="group bg-white rounded-2xl border border-border p-6 hover:border-gold hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full relative overflow-hidden"
               >
                 {/* Subtle gold accent glow on hover */}
@@ -339,7 +339,7 @@ export const LandingPage: React.FC = () => {
                   </div>
 
                   <div className="mt-10 pt-4">
-                    <Link to={`/builder?package=${pkg.id}`}>
+                    <Link to="/register/couple">
                       <MagneticButton
                         variant={pkg.highlighted ? "gold" : "outline"}
                         size="md"
@@ -531,13 +531,13 @@ export const LandingPage: React.FC = () => {
               Experience the pinnacle of wedding management technology. Begin with our interactive setup wizard or enter the agency workspace.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
-              <Link to="/builder">
+              <Link to="/register/couple">
                 <MagneticButton variant="gold" size="lg" shine={true} className="w-full sm:w-auto font-bold shadow-lg">
-                  <span>Start Wedding Wizard</span>
+                  <span>Start Couple Registration</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </MagneticButton>
               </Link>
-              <Link to="/planner">
+              <Link to="/login/planner">
                 <MagneticButton variant="secondary" size="lg" className="w-full sm:w-auto text-ivory border-ivory/30 bg-forest-800/80">
                   <span>Open Planner Dashboard</span>
                 </MagneticButton>

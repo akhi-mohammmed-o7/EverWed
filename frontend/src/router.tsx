@@ -11,20 +11,16 @@ import { CoupleLayout } from "@/components/layout/CoupleLayout";
 import { LandingPage } from "@/pages/public/LandingPage";
 import { LoginPage, PortalSelectionPage } from "@/pages/public/LoginPage";
 import { CoupleSignupPage } from "@/pages/public/CoupleSignupPage";
-import { CoupleOnboardingPage } from "@/pages/couple/CoupleOnboardingPage";
-import { WeddingBuilderPage } from "@/pages/builder/WeddingBuilderPage";
+import { CoupleWeddingBuilderPage } from "@/pages/couple/CoupleWeddingBuilderPage";
+import { PlannerSignupPage } from "@/pages/public/PlannerSignupPage";
 
-// Planner Pages
+// Staff Pages
 import { OverviewPage } from "@/pages/planner/OverviewPage";
 import { EnquiriesPage } from "@/pages/planner/EnquiriesPage";
 import { WeddingsPage } from "@/pages/planner/WeddingsPage";
 import { WeddingDetailPage } from "@/pages/planner/WeddingDetailPage";
 import { VendorsPage } from "@/pages/planner/VendorsPage";
-import { QuotesPage } from "@/pages/planner/QuotesPage";
 import { TasksPage } from "@/pages/planner/TasksPage";
-import { OperationsPage } from "@/pages/planner/OperationsPage";
-import { FinancePage } from "@/pages/planner/FinancePage";
-import { RiskRadarPage } from "@/pages/planner/RiskRadarPage";
 import { TeamManagementPage } from "@/pages/planner/TeamManagementPage";
 import { PlannerHomePage } from "@/pages/planner/PlannerHomePage";
 
@@ -35,8 +31,6 @@ import { CoupleEventsPage } from "@/pages/couple/CoupleEventsPage";
 import { CoupleGuestsPage } from "@/pages/couple/CoupleGuestsPage";
 import { CoupleChecklistPage } from "@/pages/couple/CoupleChecklistPage";
 import { CoupleBudgetPage } from "@/pages/couple/CoupleBudgetPage";
-import { CoupleVendorsPage } from "@/pages/couple/CoupleVendorsPage";
-import { PlannerSignupPage } from "@/pages/public/PlannerSignupPage";
 
 const PlannerWorkspaceHome: React.FC = () => {
   const { user } = useAuth();
@@ -72,22 +66,23 @@ const ProtectedRoute: React.FC<{
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // If a couple tries to access planner routes, gracefully redirect to their dashboard
     if (user.role === "couple") {
       return <Navigate to="/couple/dashboard" replace />;
     }
     return <Navigate to="/planner" replace />;
   }
 
-  if (user.role === "couple" && location.pathname !== "/couple/onboarding" && !user.wedding_id) {
-    return <Navigate to="/couple/onboarding" replace />;
-  }
-  if (user.role === "couple" && location.pathname === "/couple/onboarding" && user.wedding_id) {
-    return <Navigate to="/couple/dashboard" replace />;
+  // A couple without a wedding must complete the Wedding Builder first.
+  if (user.role === "couple" && !user.wedding_id && location.pathname !== "/couple/builder") {
+    return <Navigate to="/couple/builder" replace />;
   }
 
   return <>{children}</>;
 };
+
+const AdminOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <ProtectedRoute allowedRoles={["admin"]}>{children}</ProtectedRoute>
+);
 
 export const router = createBrowserRouter([
   // Public Routes
@@ -98,16 +93,8 @@ export const router = createBrowserRouter([
   { path: "/login/couple", element: <LoginPage portal="couple" /> },
   { path: "/register/couple", element: <CoupleSignupPage /> },
   { path: "/register/planner", element: <PlannerSignupPage /> },
-  {
-    path: "/builder",
-    element: (
-      <ProtectedRoute allowedRoles={["admin", "planner"]}>
-        <WeddingBuilderPage />
-      </ProtectedRoute>
-    ),
-  },
 
-  // Planner Workspace (Admin & Planner only)
+  // Staff workspace (Founder & Planner only)
   {
     path: "/planner",
     element: (
@@ -117,20 +104,16 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <PlannerWorkspaceHome /> },
-      { path: "enquiries", element: <EnquiriesPage /> },
+      { path: "enquiries", element: <AdminOnly><EnquiriesPage /></AdminOnly> },
       { path: "weddings", element: <WeddingsPage /> },
       { path: "weddings/:id", element: <WeddingDetailPage /> },
       { path: "vendors", element: <VendorsPage /> },
-      { path: "quotes", element: <QuotesPage /> },
       { path: "tasks", element: <TasksPage /> },
-      { path: "operations", element: <OperationsPage /> },
-      { path: "finance", element: <FinancePage /> },
-      { path: "risk-radar", element: <RiskRadarPage /> },
-      { path: "team", element: <TeamManagementPage /> },
+      { path: "team", element: <AdminOnly><TeamManagementPage /></AdminOnly> },
     ],
   },
 
-  // Couple Sanctuary (Accessible to Couple, and Admin/Planner for inspection)
+  // Couple portal
   {
     path: "/couple",
     element: (
@@ -140,14 +123,14 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/couple/dashboard" replace /> },
-      { path: "onboarding", element: <CoupleOnboardingPage /> },
+      { path: "onboarding", element: <Navigate to="/couple/builder" replace /> },
+      { path: "builder", element: <CoupleWeddingBuilderPage /> },
       { path: "dashboard", element: <CoupleDashboardPage /> },
       { path: "overview", element: <CoupleOverviewPage /> },
       { path: "events", element: <CoupleEventsPage /> },
       { path: "guests", element: <CoupleGuestsPage /> },
       { path: "checklist", element: <CoupleChecklistPage /> },
       { path: "budget", element: <CoupleBudgetPage /> },
-      { path: "vendors", element: <CoupleVendorsPage /> },
     ],
   },
 

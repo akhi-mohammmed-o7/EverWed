@@ -5,10 +5,6 @@ import {
   Inbox,
   Sparkles,
   CheckSquare,
-  Clock,
-  DollarSign,
-  AlertTriangle,
-  FileText,
   Building2,
   ChevronRight,
   Menu,
@@ -19,15 +15,11 @@ import { Navbar } from "./Navbar";
 import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
-  { label: "Executive Overview", icon: LayoutDashboard, path: "/planner" },
-  { label: "Enquiries & Leads", icon: Inbox, path: "/planner/enquiries" },
-  { label: "Active Weddings", icon: Sparkles, path: "/planner/weddings" },
-  { label: "Vendor Directory", icon: Building2, path: "/planner/vendors" },
-  { label: "Quote Comparison", icon: FileText, path: "/planner/quotes" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/planner" },
+  { label: "Weddings", icon: Sparkles, path: "/planner/weddings" },
   { label: "Planning Tasks", icon: CheckSquare, path: "/planner/tasks" },
-  { label: "Day-of Operations", icon: Clock, path: "/planner/operations" },
-  { label: "Financial Statement", icon: DollarSign, path: "/planner/finance" },
-  { label: "Wedding Risk Radar", icon: AlertTriangle, path: "/planner/risk-radar" },
+  { label: "Vendors", icon: Building2, path: "/planner/vendors" },
+  { label: "Enquiries", icon: Inbox, path: "/planner/enquiries", adminOnly: true },
   { label: "Team & Access", icon: Users, path: "/planner/team", adminOnly: true },
 ];
 
@@ -66,7 +58,7 @@ export const PlannerLayout: React.FC = () => {
       {mobileNavOpen && (
         <div className="md:hidden bg-white border-b border-border p-4 shadow-lg sticky top-28 z-30 space-y-1 animate-fade-in">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 mb-2">
-            Operations Modules
+            Wedding management
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
             {visibleNavItems.map((item) => {
@@ -110,8 +102,8 @@ export const PlannerLayout: React.FC = () => {
                 className="w-8 h-8 object-contain rounded-lg border border-gold/30 p-0.5 bg-white shadow-xs"
               />
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Operations OS</p>
-                <h4 className="font-serif text-sm font-semibold text-forest-900">EverWed Command</h4>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">EverWed workspace</p>
+                <h4 className="font-serif text-sm font-semibold text-forest-900">{user?.role === "admin" ? "Founder portal" : "Planner portal"}</h4>
               </div>
             </div>
 
@@ -144,8 +136,8 @@ export const PlannerLayout: React.FC = () => {
             {/* Quick Status Badge */}
             <div className="pt-4 mt-4 border-t border-border/60 px-3">
               <div className="p-3 bg-gold/10 rounded-xl border border-gold/30 text-[11px] text-forest-800">
-                <span className="font-bold text-forest-900 block mb-0.5">EverWed Engine Active</span>
-                Multi-ceremony sync & variance-controlled budget calculations active.
+                <span className="font-bold text-forest-900 block mb-0.5">Saved to SQLite</span>
+                Weddings, events, guests and tasks persist between sessions.
               </div>
             </div>
           </div>

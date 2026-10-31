@@ -7,6 +7,8 @@ export interface User {
   wedding_id?: string | null;
   active?: boolean;
   approval_status?: "pending" | "approved" | "rejected" | null;
+  partner_one_name?: string | null;
+  partner_two_name?: string | null;
 }
 
 export type UserRole = "admin" | "planner" | "team" | "finance" | "couple";
@@ -42,6 +44,8 @@ export interface CoupleSignupRequest {
 }
 
 export interface CoupleWeddingOnboarding {
+  partner_one_name?: string;
+  partner_two_name?: string;
   destination: string;
   primary_venue: string;
   guest_estimate: number;
@@ -162,6 +166,7 @@ export interface Wedding {
   odoo_project_id?: number;
   odoo_partner_id?: number;
   assigned_planner_email?: string | null;
+  assigned_planner_name?: string | null;
   tradition?: string | null;
   regional_customization?: string | null;
   created_at: string;
@@ -188,6 +193,11 @@ export interface WeddingCreate {
 
 export interface WeddingUpdate {
   title?: string;
+  bride_name?: string;
+  groom_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  destination?: string;
   primary_venue?: string;
   package_type?: string;
   guest_estimate?: number;
@@ -197,6 +207,8 @@ export interface WeddingUpdate {
   status?: string;
   start_date?: string;
   end_date?: string;
+  tradition?: string;
+  regional_customization?: string;
 }
 
 // ── Event Types ──
@@ -378,7 +390,7 @@ export interface TaskCreate {
 
 export interface TaskUpdate {
   title?: string;
-  event_id?: string;
+  event_id?: string | null;
   category?: string;
   owner?: string;
   due_date?: string;
@@ -581,6 +593,18 @@ export interface DashboardOverview {
 }
 
 // ── Guest & RSVP Types (Couple Portal) ──
+export interface GuestImportRowError {
+  row: number;
+  message: string;
+}
+
+export interface GuestImportResult {
+  created: number;
+  skipped: number;
+  errors: GuestImportRowError[];
+  error_count: number;
+}
+
 export interface Guest {
   id: string;
   wedding_id: string;

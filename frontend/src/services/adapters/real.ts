@@ -40,6 +40,7 @@ import type {
   FinancialSummary,
   DashboardOverview,
   Guest,
+  GuestImportResult,
 } from "@/types";
 
 export const realAdapter: ServiceAdapter = {
@@ -92,6 +93,7 @@ export const realAdapter: ServiceAdapter = {
     create: (weddingId, payload: EventCreate) =>
       apiClient.post<WeddingEvent>(`/api/v1/weddings/${weddingId}/events`, payload),
     update: (eventId, payload: EventUpdate) => apiClient.patch<WeddingEvent>(`/api/v1/events/${eventId}`, payload),
+    delete: (eventId) => apiClient.delete<{ deleted: boolean }>(`/api/v1/events/${eventId}`).then(() => undefined),
   },
 
   vendors: {
@@ -137,6 +139,7 @@ export const realAdapter: ServiceAdapter = {
     },
     create: (weddingId, payload: TaskCreate) => apiClient.post<Task>(`/api/v1/weddings/${weddingId}/tasks`, payload),
     update: (taskId, payload: TaskUpdate) => apiClient.patch<Task>(`/api/v1/tasks/${taskId}`, payload),
+    delete: (taskId) => apiClient.delete<{ deleted: boolean }>(`/api/v1/tasks/${taskId}`).then(() => undefined),
   },
 
   operations: {
@@ -178,6 +181,8 @@ export const realAdapter: ServiceAdapter = {
     create: ({ wedding_id, ...payload }) => apiClient.post<Guest>(`/api/v1/weddings/${wedding_id}/guests`, payload),
     update: (id, payload) => apiClient.patch<Guest>(`/api/v1/guests/${id}`, payload),
     delete: (id) => apiClient.delete<{ deleted: boolean }>(`/api/v1/guests/${id}`).then(() => undefined),
+    importCsv: (weddingId, csv) =>
+      apiClient.post<GuestImportResult>(`/api/v1/weddings/${weddingId}/guests/import`, { csv }),
   },
 };
 

@@ -25,7 +25,7 @@ async def create_enquiry(payload: EnquiryCreate):
 @router.get("", response_model=APIResponse[List[EnquiryResponse]])
 async def list_enquiries(
     status: Optional[str] = Query(None, description="Filter by status"),
-    _: dict = Depends(require_role("admin", "planner", "finance")),
+    _: dict = Depends(require_role("admin")),
 ):
     """List and search enquiries."""
     data = EnquiryService.list_enquiries(status=status)
@@ -33,7 +33,7 @@ async def list_enquiries(
 
 
 @router.get("/{enquiry_id}", response_model=APIResponse[EnquiryResponse])
-async def get_enquiry(enquiry_id: str, _: dict = Depends(require_role("admin", "planner", "finance"))):
+async def get_enquiry(enquiry_id: str, _: dict = Depends(require_role("admin"))):
     """Retrieve details of an enquiry including meetings."""
     data = EnquiryService.get_enquiry(enquiry_id)
     return APIResponse(success=True, data=data)
@@ -43,7 +43,7 @@ async def get_enquiry(enquiry_id: str, _: dict = Depends(require_role("admin", "
 async def update_enquiry(
     enquiry_id: str,
     payload: EnquiryUpdate,
-    _: dict = Depends(require_role("admin", "planner")),
+    _: dict = Depends(require_role("admin")),
 ):
     """Update enquiry status, record meeting details, or attach signed agreement."""
     data = EnquiryService.update_enquiry(enquiry_id, payload)
@@ -54,7 +54,7 @@ async def update_enquiry(
 async def convert_enquiry_to_wedding(
     enquiry_id: str,
     payload: ConvertEnquiryRequest,
-    _: dict = Depends(require_role("admin", "planner")),
+    _: dict = Depends(require_role("admin")),
 ):
     """Convert an eligible enquiry; task planning begins after the booking deposit."""
     data = EnquiryService.convert_to_wedding(enquiry_id, payload)

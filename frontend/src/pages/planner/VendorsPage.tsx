@@ -20,15 +20,20 @@ import { Modal } from "@/components/ui/Modal";
 import { services } from "@/services";
 import type { Vendor, VendorCreate } from "@/types";
 import { VENDOR_CATEGORIES, DESTINATIONS } from "@/lib/constants";
+import { useAuth } from "@/context/AuthContext";
 
 export const VendorsPage: React.FC = () => {
+  const { user } = useAuth();
+  const canManage = user?.role === "admin";
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingVendorId, setEditingVendorId] = useState<string | null>(null);
   const [selectedVendorForDetail, setSelectedVendorForDetail] = useState<Vendor | null>(null);
+  const [error, setError] = useState("");
 
   const [newVendor, setNewVendor] = useState<VendorCreate>({
     name: "",
@@ -57,31 +62,62 @@ export const VendorsPage: React.FC = () => {
     loadVendors();
   }, [categoryFilter]);
 
+  const resetVendorForm = () => {
+    setEditingVendorId(null);
+    setNewVendor({
+      name: "",
+      category: "Catering",
+      contact_person: "",
+      phone: "",
+      email: "",
+      city: "Jaipur",
+      rating: 4.9,
+      services_offered: [],
+      pricing_model_default: "fixed",
+      bank_account_details: "",
+    });
+    setServicesInput("");
+  };
+
+  const openEditVendor = (vendor: Vendor) => {
+    setEditingVendorId(vendor.id);
+    setNewVendor({
+      name: vendor.name,
+      category: vendor.category,
+      contact_person: vendor.contact_person,
+      phone: vendor.phone,
+      email: vendor.email,
+      city: vendor.city,
+      rating: vendor.rating,
+      services_offered: vendor.services_offered || [],
+      pricing_model_default: vendor.pricing_model_default,
+      bank_account_details: vendor.bank_account_details || "",
+    });
+    setServicesInput((vendor.services_offered || []).join(", "));
+    setSelectedVendorForDetail(null);
+    setIsModalOpen(true);
+    setError("");
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     try {
       const offered = servicesInput
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      await services.vendors.create({ ...newVendor, services_offered: offered });
+      const payload = { ...newVendor, services_offered: offered };
+      if (editingVendorId) {
+        await services.vendors.update(editingVendorId, payload);
+      } else {
+        await services.vendors.create(payload);
+      }
       setIsModalOpen(false);
-      setNewVendor({
-        name: "",
-        category: "Catering",
-        contact_person: "",
-        phone: "",
-        email: "",
-        city: "Jaipur",
-        rating: 4.9,
-        services_offered: [],
-        pricing_model_default: "fixed",
-        bank_account_details: "",
-      });
-      setServicesInput("");
+      resetVendorForm();
       loadVendors();
-    } catch (err) {
-      console.error(err);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to save this vendor.");
     }
   };
 
@@ -110,20 +146,24 @@ export const VendorsPage: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          variant="gold"
-          onClick={() => {
-            if (categoryFilter !== "all") {
-              setNewVendor((prev) => ({ ...prev, category: categoryFilter }));
-            }
-            setIsModalOpen(true);
-          }}
-          className="font-bold shadow-xs"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Register New Supplier
-        </Button>
+        {canManage && (
+          <Button
+            variant="gold"
+            onClick={() => {
+              if (categoryFilter !== "all") {
+                setNewVendor((prev) => ({ ...prev, category: categoryFilter }));
+              }
+              setIsModalOpen(true);
+            }}
+            className="font-bold shadow-xs"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Register New Supplier
+          </Button>
+        )}
       </div>
+
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-3.5 rounded-2xl border border-border flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
@@ -177,20 +217,22 @@ export const VendorsPage: React.FC = () => {
               There are currently no supplier records matching your filter. You can easily register and onboard trusted partners directly into EverWed.
             </p>
           </div>
-          <Button
-            variant="gold"
-            size="sm"
-            onClick={() => {
-              if (categoryFilter !== "all") {
-                setNewVendor((prev) => ({ ...prev, category: categoryFilter }));
-              }
-              setIsModalOpen(true);
-            }}
-            className="font-bold text-xs"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            Add Supplier in {categoryFilter === "all" ? "Directory" : categoryFilter}
-          </Button>
+          {canManage && (
+            <Button
+              variant="gold"
+              size="sm"
+              onClick={() => {
+                if (categoryFilter !== "all") {
+                  setNewVendor((prev) => ({ ...prev, category: categoryFilter }));
+                }
+                setIsModalOpen(true);
+              }}
+              className="font-bold text-xs"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Add Supplier in {categoryFilter === "all" ? "Directory" : categoryFilter}
+            </Button>
+          )}
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -330,7 +372,12 @@ export const VendorsPage: React.FC = () => {
               </div>
             )}
 
-            <div className="pt-3 border-t border-border flex justify-end">
+            <div className="flex justify-end gap-2 border-t border-border pt-3">
+              {canManage && (
+                <Button variant="gold" size="sm" onClick={() => openEditVendor(selectedVendorForDetail)}>
+                  Edit supplier
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -343,12 +390,12 @@ export const VendorsPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* ── REGISTER VENDOR MODAL ── */}
+      {/* ── REGISTER VENDOR MODAL (Founder only) ── */}
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Register Verified Supplier Partner"
-        subtitle="Onboard a luxury supplier into the EverWed vendor directory."
+        isOpen={isModalOpen && canManage}
+        onClose={() => { setIsModalOpen(false); resetVendorForm(); }}
+        title={editingVendorId ? "Edit supplier" : "Register supplier"}
+        subtitle="Save a supplier in the EverWed vendor directory."
       >
         <form onSubmit={handleCreate} className="space-y-3.5 text-xs">
           <div>
@@ -449,11 +496,11 @@ export const VendorsPage: React.FC = () => {
           </div>
 
           <div className="pt-3 border-t border-border flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setIsModalOpen(false); resetVendorForm(); }}>
               Cancel
             </Button>
             <Button type="submit" variant="gold" size="sm" className="font-bold">
-              Register Supplier
+              {editingVendorId ? "Save changes" : "Register supplier"}
             </Button>
           </div>
         </form>

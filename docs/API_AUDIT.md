@@ -38,12 +38,12 @@ not just frontend navigation.
 | POST `/api/v1/weddings/onboarding` | `weddings.couple_onboarding` / `WeddingService.create_wedding` | Authenticated couple without an existing wedding; transaction creates a real submitted wedding and links it to that account | Couple wedding setup form |
 | GET `/api/v1/weddings` | `weddings.list_weddings` | Authenticated; filters returned rows through wedding access | Weddings page |
 | GET `/api/v1/weddings/{wedding_id}` | `weddings.get_wedding` | Wedding access dependency; SQLite read | Wedding detail/couple pages |
-| PATCH `/api/v1/weddings/{wedding_id}` | `weddings.update_wedding` | Admin/planner plus wedding access; SQLite write | Builder/detail as wired |
+| PATCH `/api/v1/weddings/{wedding_id}` | `weddings.update_wedding` | Admin/planner plus wedding access; Couple may update preference fields only (contract value and lifecycle status are agency-controlled); SQLite write | Couple Wedding Builder and staff detail |
 | POST `/api/v1/weddings/{wedding_id}/planner-assignment` | `weddings.assign_planner` | Admin only; validates active planner email and stores a `users` foreign-key relation transactionally | Founder Team & Access page |
 | POST `/api/v1/weddings/{wedding_id}/events` | `events.create_event` | Admin/planner plus wedding access; SQLite write and counters | Builder/detail |
 | GET `/api/v1/weddings/{wedding_id}/events` | `events.list_events_for_wedding` | Wedding access; SQLite read | Couple events and detail |
 | GET `/api/v1/events/{event_id}` | `events.get_event` | Event-to-wedding access; SQLite read | Real adapter |
-| PATCH `/api/v1/events/{event_id}` | `events.update_event` | Admin/planner plus event-to-wedding access; SQLite write | Detail pages |
+| PATCH `/api/v1/events/{event_id}` | `events.update_event` | Admin/planner plus event-to-wedding access; Couple may edit owned functions; coordinator identity stays server-assigned and dates/times are validated | Couple Wedding Builder, events page and detail pages |
 | GET `/api/v1/vendors` | `vendors.list_vendors` | Any authenticated user; global directory | Vendor pages |
 | POST `/api/v1/vendors` | `vendors.create_vendor` | Admin/planner; SQLite write | Vendor management |
 | GET `/api/v1/vendors/{vendor_id}` | `vendors.get_vendor` | Any authenticated user; global record read | Real adapter |
@@ -54,7 +54,7 @@ not just frontend navigation.
 | POST `/api/v1/quotes/{quote_id}/select` | `quotes.select_winning_quote` | Admin/planner and quote-wedding access; transaction selects one and rejects competitors | Quotes page |
 | POST `/api/v1/weddings/{wedding_id}/tasks` | `tasks.create_task` | Admin/planner/team and wedding access; SQLite write | Tasks/detail |
 | GET `/api/v1/weddings/{wedding_id}/tasks` | `tasks.list_tasks` | Wedding access; optional status/category/priority/owner filters | Tasks/couple checklist |
-| PATCH `/api/v1/tasks/{task_id}` | `tasks.update_task` | Admin/planner/team and task-wedding access; SQLite write | Tasks/couple checklist |
+| PATCH `/api/v1/tasks/{task_id}` | `tasks.update_task` | Admin/planner/team and task-wedding access; Couple may update `status`/`notes` only; every update is persisted to SQLite | Tasks/couple checklist |
 | POST `/api/v1/operations/weddings/{wedding_id}/events/{event_id}/schedule` | `operations.add_schedule_item` | Admin/planner/team plus wedding/event scope; SQLite write | Operations/detail |
 | GET `/api/v1/operations/weddings/{wedding_id}/schedule` | `operations.list_schedule` | Wedding access; optional event filter | Operations/couple events |
 | PATCH `/api/v1/operations/schedule/{item_id}` | `operations.update_schedule_item` | Role plus schedule-wedding access | Operations |
@@ -101,6 +101,15 @@ The following `ServiceAdapter` operations do not persist via a backend endpoint:
 - Browser sessions use an HttpOnly, SameSite=Lax cookie; state-changing cookie
   requests with an Origin outside configured CORS origins are rejected. Bearer
   remains available for explicit API clients and legacy tests.
+- Couple onboarding generates the baseline checklist and each function generates
+  three preparation tasks. Generation is idempotent, and Couples can complete
+  tasks without changing planner-owned fields.
+- The couple-only Wedding Builder lives at `/couple/builder`. The staff creation
+  wizard at `/builder` is labelled "Create Wedding" and is not the Couple
+  builder; all public builder CTAs lead to Couple registration or Planner login.
+- `backend/scripts/provision_founder.py` creates a local Founder from
+  `EVERWED_FOUNDER_EMAIL` / `EVERWED_FOUNDER_PASSWORD`; it hashes the password and
+  never prints or stores plaintext.
 - The database is SQLite at `backend/data/everwed.sqlite3` by default. Its schema
   has thirteen business entity tables plus user/session tables, foreign keys,
   indexes, WAL, and a versioned money migration. This establishes persistence

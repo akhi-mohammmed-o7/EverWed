@@ -1,14 +1,14 @@
 @echo off
-title EverWed / Royal Knot OS - Launcher
+title EverWed - Launcher
 echo ========================================================
-echo       EverWed (ShaadiOS) - Royal Knot OS Launcher
+echo                    EverWed Launcher
 echo ========================================================
 echo.
 
 set ROOT=%~dp0
 
 echo [1/2] Starting Backend (FastAPI on http://localhost:8000)...
-start "Royal Knot OS - Backend" cmd /k "cd /d %ROOT%backend && .venv\Scripts\uvicorn.exe app.main:app --reload --port 8000"
+start "EverWed - Backend" cmd /k "cd /d %ROOT%backend && .venv\Scripts\uvicorn.exe app.main:app --reload --port 8000"
 
 ping 127.0.0.1 -n 4 >nul
 

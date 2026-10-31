@@ -26,7 +26,7 @@ async def list_vendors(
 
 
 @router.post("", response_model=APIResponse[VendorResponse], status_code=status.HTTP_201_CREATED)
-async def create_vendor(payload: VendorCreate, _: dict = Depends(require_role("admin", "planner"))):
+async def create_vendor(payload: VendorCreate, _: dict = Depends(require_role("admin"))):
     """Register a new vendor."""
     data = VendorService.create_vendor(payload)
     return APIResponse(success=True, data=data)
@@ -43,7 +43,7 @@ async def get_vendor(vendor_id: str):
 async def update_vendor(
     vendor_id: str,
     payload: VendorUpdate,
-    _: dict = Depends(require_role("admin", "planner")),
+    _: dict = Depends(require_role("admin")),
 ):
     """Update vendor contact details or services."""
     data = VendorService.update_vendor(vendor_id, payload)

@@ -29,6 +29,7 @@ export const EnquiriesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState("");
 
   // Create Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -39,9 +40,9 @@ export const EnquiriesPage: React.FC = () => {
     contact_phone: "",
     destination: "Jaipur",
     package_type: "Signature",
-    estimated_guests: 400,
-    estimated_budget: 20000000,
-    theme: "Royal Heritage",
+    estimated_guests: 100,
+    estimated_budget: 0,
+    theme: "",
     enquiry_source: "Instagram",
     requirements: "",
   });
@@ -57,10 +58,11 @@ export const EnquiriesPage: React.FC = () => {
 
   const fetchEnquiries = () => {
     setIsLoading(true);
+    setError("");
     services.enquiries
       .list(filterStatus === "all" ? undefined : { status: filterStatus })
       .then((data) => setEnquiries(data))
-      .catch((err) => console.error(err))
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load enquiries."))
       .finally(() => setIsLoading(false));
   };
 
@@ -70,21 +72,34 @@ export const EnquiriesPage: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     try {
       await services.enquiries.create(newEnq);
       setIsCreateOpen(false);
       fetchEnquiries();
-    } catch (err) {
-      console.error(err);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to create this enquiry.");
     }
   };
 
   const handleMarkAgreementSigned = async (enquiry: Enquiry) => {
+    setError("");
     try {
       await services.enquiries.update(enquiry.id, { agreement_signed: true, status: "confirmed" });
       fetchEnquiries();
-    } catch (err) {
-      console.error(err);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to update this enquiry.");
+    }
+  };
+
+  const handleStatusChange = async (enquiry: Enquiry, status: string) => {
+    if (status === enquiry.status) return;
+    setError("");
+    try {
+      await services.enquiries.update(enquiry.id, { status });
+      fetchEnquiries();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to update this enquiry.");
     }
   };
 
@@ -104,8 +119,8 @@ export const EnquiriesPage: React.FC = () => {
       setConvertTarget(null);
       fetchEnquiries();
       navigate(`/planner/weddings/${res.wedding.id}`);
-    } catch (err) {
-      console.error(err);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to convert this enquiry.");
     } finally {
       setIsConverting(false);
     }
@@ -143,6 +158,8 @@ export const EnquiriesPage: React.FC = () => {
         </Button>
       </div>
 
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
+
       {/* Filter and Search Bar */}
       <div className="bg-white p-3.5 rounded-2xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
         <div className="relative flex-1 max-w-sm">
@@ -178,10 +195,24 @@ export const EnquiriesPage: React.FC = () => {
         {filtered.map((enq) => (
           <Card key={enq.id} className="p-5 flex flex-col justify-between hover:border-gold/50 transition-all">
             <div>
-              <div className="flex justify-between items-start">
+              <div className="flex items-start justify-between gap-2">
                 <Badge status={enq.status} />
                 <span className="text-[10px] text-muted-foreground">{formatDate(enq.created_at)}</span>
               </div>
+              <label className="mt-2 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Update status
+                <select
+                  value={enq.status}
+                  onChange={(event) => void handleStatusChange(enq, event.target.value)}
+                  className="input-base mt-1 py-1 text-xs"
+                >
+                  <option value="new">New</option>
+                  <option value="meeting_scheduled">Meeting scheduled</option>
+                  <option value="agreement_sent">Agreement sent</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </label>
 
               <h3 className="font-serif text-lg font-bold text-forest-900 mt-2.5">
                 {enq.bride_name} & {enq.groom_name}
@@ -277,6 +308,7 @@ export const EnquiriesPage: React.FC = () => {
         subtitle={`Provisioning project for ${convertTarget?.bride_name} & ${convertTarget?.groom_name} requires a signed agreement and complete wedding dates and venue.`}
       >
         <form onSubmit={handleConvert} className="space-y-4 text-xs">
+          {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-rose-900">{error}</div>}
           <div>
             <label className="label-base">Confirmed Wedding Budget (INR)</label>
             <input
@@ -331,6 +363,7 @@ export const EnquiriesPage: React.FC = () => {
         subtitle="Log couple wedding requirements from WhatsApp, Instagram, or Phone consultation."
       >
         <form onSubmit={handleCreateSubmit} className="space-y-3.5 text-xs">
+          {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-rose-900">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label-base">Bride's Name</label>

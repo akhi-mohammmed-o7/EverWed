@@ -1000,6 +1000,14 @@ export const mockAdapter: ServiceAdapter = {
       _events[idx] = updated;
       return updated;
     },
+    async delete(eventId) {
+      await delay();
+      const existing = _events.find((event) => event.id === eventId);
+      if (!existing) throw new Error(`Event '${eventId}' not found`);
+      _events = _events.filter((event) => event.id !== eventId);
+      const wedding = _weddings.find((item) => item.id === existing.wedding_id);
+      if (wedding) wedding.events_count = _events.filter((event) => event.wedding_id === wedding.id).length;
+    },
   },
 
   vendors: {
@@ -1185,12 +1193,17 @@ export const mockAdapter: ServiceAdapter = {
       const updated: Task = {
         ..._tasks[idx],
         ...payload,
+        event_id: payload.event_id === null ? undefined : payload.event_id ?? _tasks[idx].event_id,
         priority: (payload.priority as Task["priority"]) ?? _tasks[idx].priority,
         status: (payload.status as Task["status"]) ?? _tasks[idx].status,
         updated_at: new Date().toISOString(),
       };
       _tasks[idx] = updated;
       return updated;
+    },
+    async delete(taskId) {
+      await delay();
+      _tasks = _tasks.filter((task) => task.id !== taskId);
     },
   },
 
@@ -1491,6 +1504,9 @@ export const mockAdapter: ServiceAdapter = {
     async delete(id) {
       await delay();
       _guests = _guests.filter((g) => g.id !== id);
+    },
+    async importCsv() {
+      throw new Error("CSV guest import requires the persistent EverWed backend.");
     },
   },
 };
