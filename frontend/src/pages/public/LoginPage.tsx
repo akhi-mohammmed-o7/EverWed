@@ -54,9 +54,7 @@ export const LoginPage: React.FC = () => {
         {/* Brand */}
         <div className="text-center space-y-2">
           <Link to="/" className="inline-flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-2xl bg-forest-800 flex items-center justify-center text-gold shadow-md">
-              <Sparkles className="w-5 h-5" />
-            </div>
+            <img src="/logo.png" alt="EverWed Logo" className="w-16 h-16 object-contain rounded-2xl shadow-md border border-gold/40 p-1 bg-white mb-2" />
             <span className="font-serif text-2xl font-bold tracking-tight text-forest-900">{APP_NAME}</span>
           </Link>
           <h2 className="font-serif text-2xl font-bold text-forest-900 mt-2">Sign in to your Sanctuary</h2>

@@ -482,7 +482,7 @@ export const mockAdapter: ServiceAdapter = {
         return { token: mockToken, user: coupleUser };
       }
       // General fallback login for smooth hackathon demo
-      const user: User = { uid: 99, name: payload.username || "Planner", email: `${payload.username}@shaadios.in`, role: "planner" };
+      const user: User = { uid: 99, name: payload.username || "Planner", email: `${payload.username}@everwed.in`, role: "planner" };
       mockToken = "session-token-planner-" + Date.now();
       localStorage.setItem("auth_token", mockToken);
       localStorage.setItem("auth_user", JSON.stringify(user));

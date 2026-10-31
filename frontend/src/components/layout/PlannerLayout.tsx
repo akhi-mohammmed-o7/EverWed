@@ -38,9 +38,12 @@ export const PlannerLayout: React.FC = () => {
         {/* Sidebar */}
         <aside className="w-64 shrink-0 hidden md:block">
           <div className="sticky top-24 bg-white rounded-2xl border border-border p-4 shadow-sm space-y-1">
-            <div className="px-3 py-2 mb-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Operations OS</p>
-              <h4 className="font-serif text-sm font-semibold text-forest-900">The Royal Knot</h4>
+            <div className="flex items-center gap-2.5 px-3 py-2 mb-2">
+              <img src="/logo.png" alt="EverWed" className="w-8 h-8 object-contain rounded-lg border border-gold/30 p-0.5 bg-white shadow-xs" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Operations OS</p>
+                <h4 className="font-serif text-sm font-semibold text-forest-900">EverWed • The Royal Knot</h4>
+              </div>
             </div>
 
             {navItems.map((item) => {

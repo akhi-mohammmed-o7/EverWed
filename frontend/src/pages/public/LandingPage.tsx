@@ -234,7 +234,7 @@ export const LandingPage: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto bg-forest-950 text-ivory-400 py-10 border-t border-forest-900 text-xs text-center">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="font-serif text-base text-gold font-bold mb-1">ShaadiOS • The Royal Knot</p>
+          <p className="font-serif text-base text-gold font-bold mb-1">EverWed • The Royal Knot</p>
           <p>© 2026 The Royal Knot OS. Engineered for Luxury Indian Destination Weddings.</p>
         </div>
       </footer>

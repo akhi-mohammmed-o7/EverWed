@@ -563,7 +563,7 @@ export const WeddingBuilderPage: React.FC = () => {
               <div>
                 <h2 className="font-serif text-2xl font-bold text-forest-900">Step 5 — Complete Wedding Review</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Verify your wedding plan specifications before saving into ShaadiOS.
+                  Verify your wedding plan specifications before saving into EverWed.
                 </p>
               </div>
 

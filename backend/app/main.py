@@ -43,6 +43,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(
             "Odoo connection is NOT fully configured in .env — running with local authoritative state hub."
         )
+
+    # Pre-seed realistic luxury wedding dataset for instant demonstration
+    from app.services.seed import seed_demo_data
+    seed_demo_data()
+    logger.info("EverWed demo dataset pre-seeded successfully.")
+
     yield
 
 
@@ -51,9 +57,9 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     application = FastAPI(
-        title=settings.app_name,
+        title="EverWed OS API",
         version=settings.app_version,
-        description="Unified Wedding Management Platform for The Royal Knot luxury agency — Jaipur & Udaipur.",
+        description="Unified Wedding Management Platform for EverWed luxury agency — Jaipur & Udaipur.",
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
         lifespan=lifespan,

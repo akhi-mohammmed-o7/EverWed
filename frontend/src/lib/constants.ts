@@ -1,4 +1,4 @@
-export const APP_NAME = "ShaadiOS";
+export const APP_NAME = "EverWed";
 export const APP_TAGLINE = "Luxury Wedding Planning & Operational Management";
 
 export const VENDOR_CATEGORIES = [
