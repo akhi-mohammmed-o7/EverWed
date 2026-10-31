@@ -7,238 +7,474 @@ import {
   Heart,
   CheckCircle,
   Calendar,
+  Clock,
+  FileText,
   DollarSign,
   TrendingUp,
+  Award,
+  Compass,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/Button";
 import { PACKAGE_TIERS, WEDDING_TRADITIONS } from "@/lib/constants";
 import { formatINR } from "@/lib/utils";
+import { EmeraldSilkShader } from "@/components/shaders/EmeraldSilkShader";
+import { GoldParticles } from "@/components/animations/GoldParticles";
+import { MagneticButton } from "@/components/animations/MagneticButton";
+import { RevealOnScroll, StaggerContainer, StaggerItem } from "@/components/animations/RevealOnScroll";
+import { AnimatedCounter } from "@/components/animations/AnimatedCounter";
 
 export const LandingPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-ivory-50 text-forest-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-ivory-50 text-forest-900 font-sans flex flex-col selection:bg-gold/30 selection:text-forest-950">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-24 md:pt-24 md:pb-32 bg-forest-900 text-ivory">
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#D7B875_1px,transparent_1px)] [background-size:24px_24px]" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold/20 border border-gold/40 text-gold text-xs font-bold mb-6 uppercase tracking-wider animate-fade-in">
-            <Sparkles className="w-3.5 h-3.5" />
-            Unified Wedding Operations & Client OS
-          </div>
+      {/* ── 1. Hero Section with Emerald Silk WebGL Shader & Floating Gold Particles ── */}
+      <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-forest-950 text-ivory pt-16 pb-24 md:pt-20 md:pb-32">
+        {/* WebGL Fluid Silk Shader */}
+        <EmeraldSilkShader className="opacity-95" mouseInfluence={true} />
 
-          <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mx-auto leading-tight">
-            Curate Grand Weddings. <br />
-            <span className="text-gold italic font-normal">Command Every Minute.</span>
-          </h1>
+        {/* Floating Champagne Gold Particles */}
+        <GoldParticles count={32} />
 
-          <p className="mt-6 text-base sm:text-lg text-ivory-200 max-w-2xl mx-auto leading-relaxed">
-            The luxury platform built for contemporary couples and high-end wedding planning agencies in Jaipur, Udaipur, and beyond.
-          </p>
+        {/* Subtle Decorative Vignette Borders */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-forest-950/80 to-transparent pointer-events-none z-10" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-forest-950 to-transparent pointer-events-none z-10" />
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/builder">
-              <Button variant="gold" size="lg" className="w-full sm:w-auto font-bold shadow-lg shadow-gold/20">
-                Launch Wedding Setup Wizard
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
-            <Link to="/planner">
-              <Button variant="secondary" size="lg" className="w-full sm:w-auto text-ivory border-ivory/40 hover:bg-ivory/10">
-                <Shield className="w-4 h-4 mr-1 text-gold" />
-                Open Planner Workspace
-              </Button>
-            </Link>
-          </div>
-
-          {/* Key Metrics Strip */}
-          <div className="mt-16 pt-10 border-t border-ivory/10 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ivory-300">Operational Precision</p>
-              <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1">25+ Playbooks</h4>
-              <p className="text-xs text-ivory-300 mt-0.5">Pre-engineered tasks</p>
+        {/* Hero Content Container */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 text-center">
+          {/* Badge */}
+          <RevealOnScroll variant="fadeIn" delay={0.1}>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-xs font-semibold mb-6 uppercase tracking-widest backdrop-blur-md shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-gold-300 animate-pulse" />
+              <span>Unified Wedding Operations & Client OS</span>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ivory-300">Quote Engine</p>
-              <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1">Fair Per-Plate</h4>
-              <p className="text-xs text-ivory-300 mt-0.5">Normalized comparisons</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ivory-300">Financial Integrity</p>
-              <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1">Zero Variance</h4>
-              <p className="text-xs text-ivory-300 mt-0.5">Mandatory bill audits</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-ivory-300">Platform Sync</p>
-              <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1">Odoo XML-RPC</h4>
-              <p className="text-xs text-ivory-300 mt-0.5">Dual-mode resilience</p>
-            </div>
-          </div>
-        </div>
-      </section>
+          </RevealOnScroll>
 
-      {/* Cultural Traditions Section */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <p className="text-xs font-bold uppercase tracking-wider text-gold-700">Cultural Customization</p>
-          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-forest-900 mt-2">
-            Tailored to Your Heritage & Traditions
-          </h2>
-          <p className="text-sm text-muted-foreground mt-3">
-            Every family and wedding is unique. Select, reorder, customize, or craft your multi-day rituals freely.
-          </p>
-        </div>
+          {/* Headline */}
+          <RevealOnScroll variant="fadeUp" delay={0.25} duration={0.9}>
+            <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mx-auto leading-[1.12] text-ivory drop-shadow-md">
+              Curate Grand Weddings. <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-300 via-gold to-gold-400 italic font-normal">
+                Command Every Minute.
+              </span>
+            </h1>
+          </RevealOnScroll>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {WEDDING_TRADITIONS.map((tradition) => (
-            <div
-              key={tradition.id}
-              className="bg-white rounded-2xl border border-border p-5 hover:border-gold/50 hover:shadow-md transition-all flex flex-col justify-between"
-            >
+          {/* Tagline */}
+          <RevealOnScroll variant="fadeUp" delay={0.4} duration={0.85}>
+            <p className="mt-6 text-base sm:text-lg text-ivory-200/90 max-w-2xl mx-auto leading-relaxed font-light">
+              The luxury platform engineered for contemporary couples and high-end wedding planning agencies in Jaipur, Udaipur, and beyond.
+            </p>
+          </RevealOnScroll>
+
+          {/* Magnetic CTA Buttons */}
+          <RevealOnScroll variant="fadeUp" delay={0.55}>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+              <Link to="/builder">
+                <MagneticButton
+                  variant="gold"
+                  size="lg"
+                  shine={true}
+                  className="w-full sm:w-auto font-bold shadow-xl shadow-gold/20"
+                >
+                  <span>Launch Wedding Setup Wizard</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </MagneticButton>
+              </Link>
+              <Link to="/planner">
+                <MagneticButton
+                  variant="secondary"
+                  size="lg"
+                  shine={false}
+                  className="w-full sm:w-auto text-ivory border-ivory/30 bg-forest-900/60 backdrop-blur-sm hover:bg-forest-800/80 hover:border-gold/50"
+                >
+                  <Shield className="w-4 h-4 mr-1 text-gold" />
+                  <span>Open Planner Workspace</span>
+                </MagneticButton>
+              </Link>
+            </div>
+          </RevealOnScroll>
+
+          {/* Key Metrics Strip with Animated Counter Rollups */}
+          <RevealOnScroll variant="fadeUp" delay={0.7}>
+            <div className="mt-16 pt-10 border-t border-ivory/15 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left backdrop-blur-sm bg-forest-950/30 p-6 rounded-2xl border border-gold/15">
               <div>
-                <span className="text-3xl">{tradition.icon}</span>
-                <h3 className="font-serif text-base font-bold text-forest-900 mt-3">{tradition.label}</h3>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{tradition.description}</p>
+                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Operational Precision</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
+                  <AnimatedCounter value={25} suffix="+" duration={1.8} />
+                  <span className="text-lg ml-1 font-sans font-normal text-ivory-200">Playbooks</span>
+                </h4>
+                <p className="text-xs text-ivory-300 mt-0.5">Pre-engineered tasks</p>
               </div>
-              <div className="mt-4 pt-3 border-t border-border/50">
-                <span className="text-[11px] font-semibold text-gold-800 bg-gold/15 px-2 py-0.5 rounded-md">
-                  {tradition.badge}
-                </span>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Quote Engine</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
+                  <AnimatedCounter value={100} suffix="%" duration={1.6} />
+                  <span className="text-lg ml-1 font-sans font-normal text-ivory-200">Normalized</span>
+                </h4>
+                <p className="text-xs text-ivory-300 mt-0.5">Fair per-plate comparison</p>
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Financial Integrity</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
+                  <span className="text-gold">Zero</span>
+                  <span className="text-lg ml-1.5 font-sans font-normal text-ivory-200">Variance</span>
+                </h4>
+                <p className="text-xs text-ivory-300 mt-0.5">Mandatory bill audits</p>
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Platform Sync</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
+                  <span className="text-gold">Odoo</span>
+                  <span className="text-lg ml-1 font-sans font-normal text-ivory-200">XML-RPC</span>
+                </h4>
+                <p className="text-xs text-ivory-300 mt-0.5">Dual-mode resilience</p>
               </div>
             </div>
-          ))}
+          </RevealOnScroll>
         </div>
       </section>
 
-      {/* Packages Section */}
-      <section className="py-20 bg-ivory-100 border-y border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <p className="text-xs font-bold uppercase tracking-wider text-gold-700">Transparent Pricing</p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-forest-900 mt-2">
-              Curated Luxury Wedding Packages
+      {/* ── 2. Cultural Traditions Section: 8 Wedding Archetypes ── */}
+      <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <RevealOnScroll variant="fadeUp">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-widest text-gold-700 bg-gold/15 px-3 py-1 rounded-full border border-gold/30">
+              Cultural Customization
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest-900 mt-4 tracking-tight">
+              Tailored to Your Heritage & Traditions
             </h2>
-            <p className="text-sm text-muted-foreground mt-3">
-              Clear deliverables, dedicated teams, and zero hidden markups.
+            <p className="text-sm sm:text-base text-muted-foreground mt-3 leading-relaxed">
+              Every family celebration carries sacred roots. Select, customize, or craft your multi-day rituals freely with intelligent ceremony templates.
             </p>
           </div>
+        </RevealOnScroll>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {PACKAGE_TIERS.map((pkg) => (
-              <div
-                key={pkg.id}
-                className={`bg-white rounded-2xl border p-6 flex flex-col justify-between transition-all ${
-                  pkg.highlighted
-                    ? "border-gold shadow-lg ring-1 ring-gold/40 relative"
-                    : "border-border shadow-sm hover:border-gold/30"
-                }`}
+        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" staggerChildren={0.08}>
+          {WEDDING_TRADITIONS.map((tradition) => (
+            <StaggerItem key={tradition.id}>
+              <Link
+                to={`/builder?tradition=${tradition.id}`}
+                className="group bg-white rounded-2xl border border-border p-6 hover:border-gold hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full relative overflow-hidden"
               >
-                {pkg.highlighted && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-forest-900 text-gold text-[10px] font-bold uppercase tracking-wider border border-gold/40">
-                    {pkg.badge}
-                  </span>
-                )}
+                {/* Subtle gold accent glow on hover */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 rounded-full blur-2xl group-hover:bg-gold/15 transition-all duration-300 pointer-events-none" />
+
                 <div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-serif text-xl font-bold text-forest-900">{pkg.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{pkg.tier}</p>
+                  <div className="w-12 h-12 rounded-xl bg-ivory-100 border border-border flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300">
+                    {tradition.icon}
+                  </div>
+                  <h3 className="font-serif text-lg font-bold text-forest-900 mt-4 group-hover:text-forest-950 transition-colors">
+                    {tradition.label}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                    {tradition.description}
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-border/60 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-gold-800 bg-gold/15 px-2.5 py-0.5 rounded-md border border-gold/20">
+                    {tradition.badge}
+                  </span>
+                  <span className="text-xs font-bold text-forest-800 flex items-center gap-1 group-hover:text-gold-700 transition-colors">
+                    Plan <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </div>
+              </Link>
+            </StaggerItem>
+          ))}
+        </StaggerContainer>
+      </section>
+
+      {/* ── 3. Packages Section: Curated Luxury Wedding Packages ── */}
+      <section className="py-24 bg-gradient-to-b from-ivory-100 to-ivory-200/60 border-y border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <RevealOnScroll variant="fadeUp">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-xs font-bold uppercase tracking-widest text-gold-700 bg-gold/15 px-3 py-1 rounded-full border border-gold/30">
+                Transparent Pricing
+              </span>
+              <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest-900 mt-4 tracking-tight">
+                Curated Luxury Wedding Packages
+              </h2>
+              <p className="text-sm sm:text-base text-muted-foreground mt-3">
+                Clear deliverables, dedicated operational teams, and zero hidden markups.
+              </p>
+            </div>
+          </RevealOnScroll>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            {PACKAGE_TIERS.map((pkg, idx) => (
+              <RevealOnScroll key={pkg.id} variant="fadeUp" delay={idx * 0.15}>
+                <div
+                  className={`bg-white rounded-3xl border p-8 flex flex-col justify-between h-full transition-all duration-300 relative ${
+                    pkg.highlighted
+                      ? "border-gold shadow-2xl ring-2 ring-gold/40 scale-105 z-10 bg-gradient-to-b from-white via-white to-ivory-50"
+                      : "border-border shadow-md hover:border-gold/40 hover:shadow-xl"
+                  }`}
+                >
+                  {pkg.highlighted && (
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-forest-900 text-gold text-[10px] font-bold uppercase tracking-widest border border-gold/50 shadow-md">
+                      {pkg.badge}
+                    </span>
+                  )}
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-serif text-2xl font-bold text-forest-900">{pkg.name}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">{pkg.tier}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pb-6 border-b border-border">
+                      <div className="flex items-baseline">
+                        <span className="font-serif text-3xl sm:text-4xl font-bold text-forest-900">
+                          {formatINR(pkg.base_price)}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-2">base tier</span>
+                      </div>
+                      <p className="text-xs text-forest-700 mt-3 leading-relaxed">{pkg.description}</p>
+                    </div>
+
+                    <div className="mt-6 space-y-3">
+                      {pkg.features.map((feature, i) => (
+                        <div key={i} className="flex items-start gap-3 text-xs text-forest-800">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{feature}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <span className="font-serif text-3xl font-bold text-forest-900">{formatINR(pkg.base_price)}</span>
-                    <span className="text-xs text-muted-foreground ml-1.5">base package</span>
-                  </div>
-
-                  <p className="text-xs text-forest-700 mt-3 leading-relaxed">{pkg.description}</p>
-
-                  <div className="mt-6 pt-5 border-t border-border space-y-2.5">
-                    {pkg.features.map((feature, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-xs text-forest-800">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </div>
-                    ))}
+                  <div className="mt-10 pt-4">
+                    <Link to={`/builder?package=${pkg.id}`}>
+                      <MagneticButton
+                        variant={pkg.highlighted ? "gold" : "outline"}
+                        size="md"
+                        shine={pkg.highlighted}
+                        className="w-full font-bold shadow-sm"
+                      >
+                        <span>Select {pkg.name}</span>
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                      </MagneticButton>
+                    </Link>
                   </div>
                 </div>
-
-                <div className="mt-8">
-                  <Link to={`/builder?package=${pkg.id}`}>
-                    <Button variant={pkg.highlighted ? "gold" : "outline"} className="w-full font-bold">
-                      Select {pkg.name}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+              </RevealOnScroll>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Dual Experience Section */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-3xl border border-border p-8 shadow-sm hover:border-gold/40 transition-all flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-terracotta flex items-center justify-center mb-5">
-                <Heart className="w-6 h-6" />
-              </div>
-              <h3 className="font-serif text-2xl font-bold text-forest-900">Couple Sanctuary Portal</h3>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                A warm, editorial experience where couples review ceremonies, build service packages, manage VIP guest lists & RSVPs, track payments, and review inspiration boards.
-              </p>
-              <ul className="mt-6 space-y-2 text-xs text-forest-800">
-                <li className="flex items-center gap-2">✓ Wedding countdown & ceremony timeline</li>
-                <li className="flex items-center gap-2">✓ Real-time guest RSVP & dietary table mapping</li>
-                <li className="flex items-center gap-2">✓ Transparent milestone payment schedule</li>
-              </ul>
-            </div>
-            <div className="mt-8">
-              <Link to="/couple/dashboard">
-                <Button variant="secondary" className="w-full">
-                  Explore Couple Portal
-                </Button>
-              </Link>
-            </div>
+      {/* ── 4. Dual Experience Section (Couple Sanctuary vs Planner Operations) ── */}
+      <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <RevealOnScroll variant="fadeUp">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-widest text-gold-700 bg-gold/15 px-3 py-1 rounded-full border border-gold/30">
+              Bespoke Interfaces
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest-900 mt-4 tracking-tight">
+              Dual Experience Sanctuary
+            </h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-3">
+              One shared truth, two purposefully crafted perspectives for couples and planners.
+            </p>
           </div>
+        </RevealOnScroll>
 
-          <div className="bg-forest-900 text-ivory rounded-3xl border border-forest-800 p-8 shadow-sm flex flex-col justify-between relative overflow-hidden">
-            <div>
-              <div className="w-12 h-12 rounded-2xl bg-gold/20 text-gold flex items-center justify-center mb-5">
-                <Shield className="w-6 h-6" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+          {/* Couple Sanctuary Card */}
+          <RevealOnScroll variant="slideIn" delay={0.1}>
+            <div className="bg-white rounded-3xl border border-border p-8 sm:p-10 shadow-lg hover:border-gold/40 transition-all duration-300 flex flex-col justify-between h-full relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-36 h-36 bg-rose-100/40 rounded-full blur-3xl pointer-events-none" />
+              <div>
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-terracotta border border-rose-100 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+                  <Heart className="w-7 h-7 text-rose-600" />
+                </div>
+                <h3 className="font-serif text-2xl sm:text-3xl font-bold text-forest-900">Couple Sanctuary Portal</h3>
+                <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+                  A warm, editorial experience where couples review ceremonies, configure bespoke service tiers, manage VIP guest lists & RSVPs, track milestones, and view ceremony schedules.
+                </p>
+
+                <div className="mt-8 space-y-3 text-xs text-forest-800">
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-ivory-100/80 border border-border/40">
+                    <Calendar className="w-4 h-4 text-gold-700 shrink-0" />
+                    <span>Real-time ceremony timeline & countdown for Baraat & Varmala</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-ivory-100/80 border border-border/40">
+                    <CheckCircle className="w-4 h-4 text-gold-700 shrink-0" />
+                    <span>Dynamic RSVP & dietary requirements tracking</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-ivory-100/80 border border-border/40">
+                    <DollarSign className="w-4 h-4 text-gold-700 shrink-0" />
+                    <span>Transparent milestone payments and digital contract downloads</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-serif text-2xl font-bold">Planner Operations Workspace</h3>
-              <p className="text-sm text-ivory-300 mt-2 leading-relaxed">
-                Designed for high-intensity agency operations: CRM pipeline, side-by-side vendor quote normalization, minute-by-minute day-of command center, and true agency net profit statements.
+
+              <div className="mt-10 pt-4">
+                <Link to="/couple/dashboard">
+                  <MagneticButton variant="secondary" size="md" className="w-full font-bold">
+                    <span>Explore Couple Portal</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </MagneticButton>
+                </Link>
+              </div>
+            </div>
+          </RevealOnScroll>
+
+          {/* Planner Operations Card */}
+          <RevealOnScroll variant="slideIn" delay={0.25}>
+            <div className="bg-forest-950 text-ivory rounded-3xl border border-forest-800 p-8 sm:p-10 shadow-2xl flex flex-col justify-between h-full relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-36 h-36 bg-gold/10 rounded-full blur-3xl pointer-events-none" />
+              <div>
+                <div className="w-14 h-14 rounded-2xl bg-gold/20 text-gold border border-gold/30 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+                  <Shield className="w-7 h-7 text-gold" />
+                </div>
+                <h3 className="font-serif text-2xl sm:text-3xl font-bold text-ivory">Planner Operations Workspace</h3>
+                <p className="text-sm text-ivory-200/90 mt-3 leading-relaxed">
+                  Engineered for high-intensity agency execution: CRM pipeline, vendor quote normalization, day-of live operations command, and agency profit statements with Odoo ERP audit sync.
+                </p>
+
+                <div className="mt-8 space-y-3 text-xs text-ivory-200">
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-forest-900/80 border border-forest-800">
+                    <Clock className="w-4 h-4 text-gold shrink-0" />
+                    <span>Minute-by-minute Baraat, Varmala & Pheras coordinator run sheets</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-forest-900/80 border border-forest-800">
+                    <TrendingUp className="w-4 h-4 text-gold shrink-0" />
+                    <span>Late vendor arrival alerts, incident resolution & delay logs</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-forest-900/80 border border-forest-800">
+                    <FileText className="w-4 h-4 text-gold shrink-0" />
+                    <span>Mandatory zero-variance audit rules on vendor invoices</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-10 pt-4">
+                <Link to="/planner">
+                  <MagneticButton variant="gold" size="md" shine={true} className="w-full font-bold">
+                    <span>Enter Planner Workspace</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </MagneticButton>
+                </Link>
+              </div>
+            </div>
+          </RevealOnScroll>
+        </div>
+      </section>
+
+      {/* ── 5. Operational Command & Why EverWed Section ── */}
+      <section className="py-24 bg-forest-900 text-ivory border-t border-forest-800 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#D7B875_1px,transparent_1px)] [background-size:28px_28px]" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <RevealOnScroll variant="fadeUp">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-xs font-bold uppercase tracking-widest text-gold bg-gold/20 px-3 py-1 rounded-full border border-gold/40">
+                Enterprise Reliability
+              </span>
+              <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold mt-4 tracking-tight">
+                Operational Command. Built for Perfection.
+              </h2>
+              <p className="text-sm sm:text-base text-ivory-300 mt-3">
+                Why premier destination wedding planners in Rajasthan trust EverWed for high-stakes celebrations.
               </p>
-              <ul className="mt-6 space-y-2 text-xs text-ivory-200">
-                <li className="flex items-center gap-2">✓ Minute-by-minute Baraat & Varmala schedule</li>
-                <li className="flex items-center gap-2">✓ Late vendor arrival detection & incident logs</li>
-                <li className="flex items-center gap-2">✓ Mandatory variance rules on vendor invoices</li>
-              </ul>
             </div>
-            <div className="mt-8">
-              <Link to="/planner">
-                <Button variant="gold" className="w-full font-bold">
-                  Enter Planner Workspace
-                </Button>
-              </Link>
-            </div>
+          </RevealOnScroll>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <RevealOnScroll variant="fadeUp" delay={0.1}>
+              <div className="bg-forest-950/60 border border-forest-800 p-6 rounded-2xl hover:border-gold/40 transition-all">
+                <Clock className="w-8 h-8 text-gold mb-4" />
+                <h4 className="font-serif text-lg font-bold text-ivory">Minute-by-Minute Timeline</h4>
+                <p className="text-xs text-ivory-300 mt-2 leading-relaxed">
+                  Real-time synchronization for Baraat arrival, Varmala pyro cues, and pheras. Auto-detects coordinator and vendor delays.
+                </p>
+              </div>
+            </RevealOnScroll>
+
+            <RevealOnScroll variant="fadeUp" delay={0.2}>
+              <div className="bg-forest-950/60 border border-forest-800 p-6 rounded-2xl hover:border-gold/40 transition-all">
+                <Compass className="w-8 h-8 text-gold mb-4" />
+                <h4 className="font-serif text-lg font-bold text-ivory">Fair Per-Plate Quotes</h4>
+                <p className="text-xs text-ivory-300 mt-2 leading-relaxed">
+                  Normalized quotation comparison engine. Accurately evaluates catering per-plate against fixed decor contracts.
+                </p>
+              </div>
+            </RevealOnScroll>
+
+            <RevealOnScroll variant="fadeUp" delay={0.3}>
+              <div className="bg-forest-950/60 border border-forest-800 p-6 rounded-2xl hover:border-gold/40 transition-all">
+                <Award className="w-8 h-8 text-gold mb-4" />
+                <h4 className="font-serif text-lg font-bold text-ivory">Zero Variance Audits</h4>
+                <p className="text-xs text-ivory-300 mt-2 leading-relaxed">
+                  Prevents vendor double-billing, untracked line-items, and unapproved change orders before payment dispatch.
+                </p>
+              </div>
+            </RevealOnScroll>
+
+            <RevealOnScroll variant="fadeUp" delay={0.4}>
+              <div className="bg-forest-950/60 border border-forest-800 p-6 rounded-2xl hover:border-gold/40 transition-all">
+                <Shield className="w-8 h-8 text-gold mb-4" />
+                <h4 className="font-serif text-lg font-bold text-ivory">Odoo ERP Resilience</h4>
+                <p className="text-xs text-ivory-300 mt-2 leading-relaxed">
+                  Real XML-RPC integration with Odoo standard apps, paired with resilient offline mock fallback for uninterrupted field execution.
+                </p>
+              </div>
+            </RevealOnScroll>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="mt-auto bg-forest-950 text-ivory-400 py-10 border-t border-forest-900 text-xs text-center">
+      {/* ── 6. Final Call to Action ── */}
+      <section className="py-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <RevealOnScroll variant="scaleIn">
+          <div className="rounded-3xl bg-gradient-to-r from-forest-950 via-forest-900 to-forest-950 p-10 sm:p-14 text-center border border-gold/40 shadow-2xl relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(217,182,111,0.12)_0%,_transparent_70%)] pointer-events-none" />
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-ivory relative z-10">
+              Ready to Orchestrate Your Grand Celebration?
+            </h2>
+            <p className="text-sm sm:text-base text-ivory-200 mt-4 max-w-xl mx-auto relative z-10 leading-relaxed font-light">
+              Experience the pinnacle of wedding management technology. Begin with our interactive setup wizard or enter the agency workspace.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+              <Link to="/builder">
+                <MagneticButton variant="gold" size="lg" shine={true} className="w-full sm:w-auto font-bold shadow-lg">
+                  <span>Start Wedding Wizard</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </MagneticButton>
+              </Link>
+              <Link to="/planner">
+                <MagneticButton variant="secondary" size="lg" className="w-full sm:w-auto text-ivory border-ivory/30 bg-forest-800/80">
+                  <span>Open Planner Dashboard</span>
+                </MagneticButton>
+              </Link>
+            </div>
+          </div>
+        </RevealOnScroll>
+      </section>
+
+      {/* ── 7. Footer ── */}
+      <footer className="mt-auto bg-forest-950 text-ivory-400 py-12 border-t border-forest-900 text-xs text-center">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="font-serif text-base text-gold font-bold mb-1">EverWed • Luxury Wedding Operations & Planning Platform</p>
-          <p>© 2026 EverWed. Designed and engineered for luxury destination weddings and premier celebration management.</p>
+          <p className="font-serif text-lg text-gold font-bold mb-2 tracking-wide">
+            EverWed • Luxury Wedding Operations & Planning Platform
+          </p>
+          <p className="text-ivory-300/80 max-w-lg mx-auto">
+            Your Forever, Our Planning. Engineered for palace destinations, five-star heritage hotels, and premier celebration management.
+          </p>
+          <p className="mt-6 text-[11px] text-ivory-400/60">
+            © 2026 EverWed. Built for Odoo Hackathon. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>
   );
 };
 
+export default LandingPage;

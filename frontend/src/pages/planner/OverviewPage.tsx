@@ -19,6 +19,7 @@ import { CardSkeleton } from "@/components/ui/LoadingSkeleton";
 import { services } from "@/services";
 import type { DashboardOverview } from "@/types";
 import { formatINR, formatDate } from "@/lib/utils";
+import { AnimatedCounter } from "@/components/animations/AnimatedCounter";
 
 export const OverviewPage: React.FC = () => {
   const [data, setData] = useState<DashboardOverview | null>(null);
@@ -76,29 +77,47 @@ export const OverviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards Strip */}
+      {/* KPI Cards Strip — with smooth animated counters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active Weddings"
-          value={data.active_weddings_count}
+          value={
+            <AnimatedCounter value={data.active_weddings_count} duration={1.4} />
+          }
           subtitle="Currently in planning & execution"
           icon={<Sparkles className="w-5 h-5" />}
         />
         <StatCard
           title="Season Revenue"
-          value={formatINR(data.season_contracted_revenue)}
+          value={
+            <AnimatedCounter
+              value={data.season_contracted_revenue}
+              prefix="₹"
+              formatIndianCurrency={true}
+              duration={1.8}
+            />
+          }
           subtitle={`Client Collected: ${formatINR(data.total_client_payments_received)}`}
           icon={<DollarSign className="w-5 h-5 text-emerald-600" />}
         />
         <StatCard
           title="Vendor Payables"
-          value={formatINR(data.total_vendor_payables_outstanding)}
+          value={
+            <AnimatedCounter
+              value={data.total_vendor_payables_outstanding}
+              prefix="₹"
+              formatIndianCurrency={true}
+              duration={1.6}
+            />
+          }
           subtitle={`Total Billed: ${formatINR(data.total_vendor_bills_recorded)}`}
           icon={<Building2 className="w-5 h-5 text-amber-600" />}
         />
         <StatCard
           title="Pending Tasks"
-          value={data.pending_tasks_count}
+          value={
+            <AnimatedCounter value={data.pending_tasks_count} duration={1.2} />
+          }
           subtitle={`${data.overdue_tasks_count} tasks need urgent attention`}
           icon={<AlertTriangle className="w-5 h-5 text-terracotta" />}
         />

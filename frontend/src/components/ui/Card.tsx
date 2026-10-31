@@ -39,7 +39,7 @@ export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ cl
 
 export const StatCard: React.FC<{
   title: string;
-  value: string | number;
+  value: string | number | React.ReactNode;
   subtitle?: string;
   icon?: React.ReactNode;
   trend?: { value: string; positive?: boolean };
@@ -50,7 +50,7 @@ export const StatCard: React.FC<{
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-          <h3 className="font-serif text-2xl lg:text-3xl font-bold text-forest-800 mt-2">{value}</h3>
+          <div className="font-serif text-2xl lg:text-3xl font-bold text-forest-800 mt-2">{value}</div>
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           {trend && (
             <p className={cn("text-xs font-medium mt-2 flex items-center gap-1", trend.positive ? "text-emerald-700" : "text-terracotta")}>
@@ -67,4 +67,3 @@ export const StatCard: React.FC<{
     </Card>
   );
 };
-
