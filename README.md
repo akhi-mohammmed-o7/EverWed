@@ -8,10 +8,14 @@ Unified wedding management platform for **The Royal Knot** — a luxury wedding 
 |---|---|
 | Frontend | React + TypeScript + Tailwind CSS + Vite |
 | Backend | Python + FastAPI |
-| Business Platform | Odoo (authoritative source for core business records) |
+| Business Platform | Odoo (optional integration; configure credentials to enable) |
 | Integration | FastAPI ↔ Odoo XML-RPC |
 
 ## Project Structure
+
+The local fallback stores records and sessions in process memory. Data resets
+when the backend restarts. Live Odoo synchronization depends on the target
+instance, its installed models, and verified field mappings.
 
 ```
 EverWed/

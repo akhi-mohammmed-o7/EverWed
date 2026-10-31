@@ -85,7 +85,7 @@ Create or edit `.env` in `frontend/`:
 VITE_USE_REAL_API=false
 
 # Backend API base URL
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ---

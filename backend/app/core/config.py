@@ -27,9 +27,11 @@ class Settings(BaseSettings):
 
     # ── Odoo Connection ──────────────────────────────────────────────
     odoo_url: str = "http://localhost:8069"
-    odoo_db: str = "royal_knot"
-    odoo_username: str = "admin"
-    odoo_password: str = "admin"
+    # Keep Odoo opt-in: local/demo workflows should not repeatedly attempt
+    # connections using placeholder administrator credentials.
+    odoo_db: str = ""
+    odoo_username: str = ""
+    odoo_password: str = ""
 
     # ── Application ──────────────────────────────────────────────────
     app_name: str = "EverWed OS"
@@ -59,11 +61,23 @@ class Settings(BaseSettings):
                 return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v  # type: ignore[return-value]
 
+    @field_validator("debug", mode="before")
+    @classmethod
+    def _parse_debug_mode(cls, value: object) -> object:
+        """Accept common deployment labels as well as boolean values."""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"production", "prod", "release"}:
+                return False
+            if normalized in {"development", "dev"}:
+                return True
+        return value
+
     # ── Helpers ──────────────────────────────────────────────────────
 
     @property
     def odoo_configured(self) -> bool:
-        """Return ``True`` if all four Odoo connection params are non-empty."""
+        """Return ``True`` only when every Odoo connection value is supplied."""
         return all([
             self.odoo_url,
             self.odoo_db,

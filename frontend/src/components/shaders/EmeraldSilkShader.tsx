@@ -144,6 +144,9 @@ export const EmeraldSilkShader: React.FC<EmeraldSilkShaderProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // Keep a non-null reference for the animation callback, where TypeScript
+    // cannot preserve the ref's narrowing across the closure boundary.
+    const canvasElement = canvas;
 
     // Check prefers-reduced-motion
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -297,7 +300,7 @@ export const EmeraldSilkShader: React.FC<EmeraldSilkShaderProps> = ({
           const timeInSeconds = (now - startTime) * 0.001;
 
           gl.uniform1f(timeLocation, timeInSeconds);
-          gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+          gl.uniform2f(resolutionLocation, canvasElement.width, canvasElement.height);
           gl.uniform2f(mouseLocation, currentMouse.x, currentMouse.y);
 
           gl.drawArrays(gl.TRIANGLES, 0, 6);
