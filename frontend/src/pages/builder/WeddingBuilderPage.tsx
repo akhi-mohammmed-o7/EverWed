@@ -76,6 +76,7 @@ export const WeddingBuilderPage: React.FC = () => {
   const [contactPhone, setContactPhone] = useState<string>("");
   const [alternateContact, setAlternateContact] = useState<string>("");
   const [step1Error, setStep1Error] = useState<string | null>(null);
+  const [packageFeeInput, setPackageFeeInput] = useState<string>("");
 
   // ── Step 2: Wedding Details & Destination ──
   const [weddingTitle, setWeddingTitle] = useState<string>("");
@@ -211,6 +212,9 @@ export const WeddingBuilderPage: React.FC = () => {
   // ── Step 6: Confirmation ──
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pendingWeddingId, setPendingWeddingId] = useState<string | null>(null);
+  const [savedEventKeys, setSavedEventKeys] = useState<Set<string>>(() => new Set());
 
   // ── Validation Helpers ──
   const isStep1Valid = useMemo(() => {
@@ -403,32 +407,39 @@ export const WeddingBuilderPage: React.FC = () => {
   // Final Submission to Backend
   const handleFinalSave = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
+    let weddingId = pendingWeddingId;
     try {
       const finalTitle = weddingTitle.trim() || `The Royal Union: ${brideName} & ${groomName}`;
       const finalVenue = venue.trim() || `Palace Grounds, ${resolvedDestination}`;
 
-      // 1. Create Wedding Record
-      const createdWedding = await services.weddings.create({
-        title: finalTitle,
-        bride_name: brideName,
-        groom_name: groomName,
-        contact_phone: contactPhone,
-        contact_email: contactEmail,
-        destination: resolvedDestination,
-        primary_venue: finalVenue,
-        package_type: selectedPackage,
-        guest_estimate: guestCount,
-        theme: weddingType,
-        budget_allocated: budgetCalculations.grandTotal,
-        start_date: startDate,
-        end_date: endDate,
-      });
-
-      const weddingId = createdWedding.id;
+      // Resume a partial save without creating a duplicate wedding or events.
+      if (!weddingId) {
+        const createdWedding = await services.weddings.create({
+          title: finalTitle,
+          bride_name: brideName,
+          groom_name: groomName,
+          contact_phone: contactPhone,
+          contact_email: contactEmail,
+          destination: resolvedDestination,
+          primary_venue: finalVenue,
+          package_type: selectedPackage,
+          guest_estimate: guestCount,
+          theme: weddingType,
+          budget_allocated: budgetCalculations.grandTotal,
+          ...(packageFeeInput.trim() ? { package_fee: Number(packageFeeInput) } : {}),
+          start_date: startDate,
+          end_date: endDate,
+        });
+        weddingId = createdWedding.id;
+        setPendingWeddingId(weddingId);
+      }
       localStorage.setItem("active_wedding_id", weddingId);
 
-      // 2. Create Ceremony Events linked to real weddingId
+      // Create only event records that have not already saved successfully.
       for (const ev of events) {
+        const eventKey = ev.id || `${ev.name}|${ev.date}|${ev.start_time}`;
+        if (savedEventKeys.has(eventKey)) continue;
         await services.events.create(weddingId, {
           name: ev.name,
           date: ev.date || startDate,
@@ -440,23 +451,16 @@ export const WeddingBuilderPage: React.FC = () => {
           guest_estimate: ev.guest_estimate || guestCount,
           notes: ev.description,
         });
+        setSavedEventKeys((current) => new Set(current).add(eventKey));
       }
 
-      // Auto-set couple session for instant sanctuary viewing
-      const coupleUser = {
-        uid: 2,
-        name: `${brideName} & ${groomName}`,
-        email: contactEmail,
-        role: "couple",
-      };
-      localStorage.setItem("auth_user", JSON.stringify(coupleUser));
-      localStorage.setItem("auth_token", `session-couple-${Date.now()}`);
-
       setIsConfirmModalOpen(false);
-      navigate("/couple/dashboard");
+      navigate(`/planner/weddings/${weddingId}`);
     } catch (err) {
-      console.error("Failed to complete wedding creation:", err);
-      navigate("/couple/dashboard");
+      const detail = err instanceof Error ? err.message : "Please try again.";
+      setSubmitError(weddingId
+        ? `Wedding ${weddingId} is saved, but a function did not save. Correct the issue and confirm again to resume without duplicating saved records. ${detail}`
+        : `Wedding could not be saved. ${detail}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -1367,6 +1371,21 @@ export const WeddingBuilderPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="max-w-md space-y-1.5">
+              <label className="label-base" htmlFor="wedding-package-fee">Agreed client package fee (INR, if set)</label>
+              <input
+                id="wedding-package-fee"
+                type="number"
+                min="0"
+                step="0.01"
+                className="input-base"
+                placeholder="Enter the fee from the signed proposal"
+                value={packageFeeInput}
+                onChange={(e) => setPackageFeeInput(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">The planning projection below is stored separately and is not treated as revenue.</p>
+            </div>
+
             {/* Budget Grand Total Summary */}
             <div className="p-6 rounded-2xl bg-forest-900 text-ivory flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -1544,8 +1563,15 @@ export const WeddingBuilderPage: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            This will initialize the Couple Sanctuary and generate all ceremony-specific preparation tasks in the Planner Workspace.
+            This creates the wedding and its listed functions. The planning task plan is generated after the booking deposit is recorded.
           </p>
+
+          {submitError && (
+            <div role="alert" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{submitError}</span>
+            </div>
+          )}
 
           <div className="pt-3 border-t border-border flex justify-end gap-2">
             <Button

@@ -30,7 +30,7 @@ import { PAYMENT_STAGES } from "@/lib/constants";
 
 export const FinancePage: React.FC = () => {
   const [weddings, setWeddings] = useState<Wedding[]>([]);
-  const [selectedWid, setSelectedWid] = useState<string>("wed-royal-jaipur-001");
+  const [selectedWid, setSelectedWid] = useState<string>("");
   const [vendors, setVendors] = useState<Vendor[]>([]);
 
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
@@ -48,11 +48,11 @@ export const FinancePage: React.FC = () => {
   const [clientPayForm, setClientPayForm] = useState<ClientPaymentCreate>({
     wedding_id: "",
     stage: "advance_payment",
-    amount: 5000000,
+    amount: 0,
     payment_method: "Bank Transfer",
     transaction_reference: `TXN-CLI-${Date.now().toString().slice(-6)}`,
     payment_date: new Date().toISOString().split("T")[0],
-    notes: "Pre-wedding milestone transfer",
+    notes: "",
   });
 
   const [isVendorBillOpen, setIsVendorBillOpen] = useState(false);
@@ -60,8 +60,8 @@ export const FinancePage: React.FC = () => {
     wedding_id: "",
     vendor_id: "",
     bill_number: `INV-2026-${Date.now().toString().slice(-4)}`,
-    agreed_amount: 2000000,
-    billed_amount: 2200000,
+    agreed_amount: 0,
+    billed_amount: 0,
     variance_reason: "",
     bill_date: new Date().toISOString().split("T")[0],
     due_date: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
@@ -70,7 +70,7 @@ export const FinancePage: React.FC = () => {
   const [payBillTarget, setPayBillTarget] = useState<VendorBill | null>(null);
   const [vendorPayForm, setVendorPayForm] = useState<VendorPaymentCreate>({
     bill_id: "",
-    amount: 1000000,
+    amount: 0,
     payment_type: "final",
     payment_method: "Bank Transfer",
     transaction_reference: `TXN-VEND-${Date.now().toString().slice(-6)}`,

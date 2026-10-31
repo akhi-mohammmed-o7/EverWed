@@ -4,6 +4,22 @@ export interface User {
   name: string;
   email?: string;
   role: string;
+  wedding_id?: string | null;
+  active?: boolean;
+  approval_status?: "pending" | "approved" | "rejected" | null;
+}
+
+export type UserRole = "admin" | "planner" | "team" | "finance" | "couple";
+
+export interface UserCreate {
+  name: string;
+  email: string;
+  password: string;
+  role: Exclude<UserRole, "admin">;
+  wedding_id?: string;
+  partner_one_name?: string;
+  partner_two_name?: string;
+  phone?: string;
 }
 
 export interface LoginRequest {
@@ -12,8 +28,30 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  token?: string;
   user: User;
+}
+
+export interface CoupleSignupRequest {
+  partner_one_name: string;
+  partner_two_name: string;
+  email: string;
+  phone: string;
+  password: string;
+  terms_accepted: true;
+}
+
+export interface CoupleWeddingOnboarding {
+  destination: string;
+  primary_venue: string;
+  guest_estimate: number;
+  budget_allocated: number;
+  start_date: string;
+  end_date: string;
+  theme?: string;
+  tradition?: string;
+  regional_customization?: string;
+  functions?: Array<{ name: string; date: string; start_time: string; end_time: string }>;
 }
 
 // ── Common API Types ──
@@ -89,6 +127,7 @@ export interface EnquiryUpdate {
 export interface ConvertEnquiryRequest {
   package_type?: string;
   confirmed_budget?: number;
+  confirmed_package_fee?: number;
   primary_venue?: string;
   wedding_start_date?: string;
   wedding_end_date?: string;
@@ -109,6 +148,7 @@ export interface Wedding {
   guest_estimate: number;
   theme: string;
   budget_allocated: number;
+  package_fee?: number | null;
   start_date: string;
   end_date: string;
   status: 'planning' | 'in_progress' | 'completed' | 'settled';
@@ -121,6 +161,9 @@ export interface Wedding {
   total_paid_to_vendors: number;
   odoo_project_id?: number;
   odoo_partner_id?: number;
+  assigned_planner_email?: string | null;
+  tradition?: string | null;
+  regional_customization?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +180,7 @@ export interface WeddingCreate {
   guest_estimate?: number;
   theme?: string;
   budget_allocated: number;
+  package_fee?: number;
   start_date: string;
   end_date: string;
   enquiry_id?: string;
@@ -149,6 +193,7 @@ export interface WeddingUpdate {
   guest_estimate?: number;
   theme?: string;
   budget_allocated?: number;
+  package_fee?: number;
   status?: string;
   start_date?: string;
   end_date?: string;

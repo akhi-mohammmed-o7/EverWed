@@ -52,7 +52,7 @@ export const CoupleMoodboardPage: React.FC = () => {
             Visual Moodboard & Creative Renders
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Color palettes, floral styling renders, and architectural themes curated for The Royal Knot.
+            Color palettes, floral styling renders, and architectural themes curated for EverWed.
           </p>
         </div>
       </div>

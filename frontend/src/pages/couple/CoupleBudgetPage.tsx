@@ -11,9 +11,11 @@ import { Card, CardHeader, CardContent, StatCard } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { Wedding, ClientPayment } from "@/types";
-import { formatINR, formatDate, getActiveWeddingId } from "@/lib/utils";
+import { formatINR, formatDate } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export const CoupleBudgetPage: React.FC = () => {
+  const { user } = useAuth();
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [payments, setPayments] = useState<ClientPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,14 +24,9 @@ export const CoupleBudgetPage: React.FC = () => {
     let mounted = true;
     const loadBudget = async () => {
       try {
-        const activeId = getActiveWeddingId();
-        let w: Wedding;
-        try {
-          w = await services.weddings.get(activeId);
-        } catch {
-          const all = await services.weddings.list();
-          w = all[0];
-        }
+        const activeId = user?.wedding_id;
+        if (!activeId) return;
+        const w = await services.weddings.get(activeId);
         if (!mounted || !w) return;
         setWedding(w);
         const list = await services.finance.listClientPayments(w.id).catch(() => []);
@@ -45,17 +42,18 @@ export const CoupleBudgetPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user?.wedding_id]);
 
   if (isLoading || !wedding) {
     return <div className="p-8 text-center text-xs text-muted-foreground">Loading payment schedule...</div>;
   }
 
-  const totalContract = wedding.budget_allocated;
-  const totalPaid = payments
+  const totalContract = wedding.package_fee ?? 0;
+  const totalPaidPaise = payments
     .filter((p) => ["received", "verified"].includes(p.status))
-    .reduce((sum, p) => sum + p.amount, 0);
-  const remaining = Math.max(0, totalContract - totalPaid);
+    .reduce((sum, p) => sum + Math.round(p.amount * 100), 0);
+  const totalPaid = totalPaidPaise / 100;
+  const remaining = Math.max(0, (Math.round(totalContract * 100) - totalPaidPaise) / 100);
   const paidPercent = totalContract > 0 ? Math.min(100, Math.round((totalPaid / totalContract) * 100)) : 0;
 
   return (
@@ -68,7 +66,7 @@ export const CoupleBudgetPage: React.FC = () => {
           Wedding Budget & Milestone Payment Schedule
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Agreed package contract value and validated bank receipts for Aisha & Vikram.
+          Agreed package fee and recorded client payments for {wedding.bride_name} & {wedding.groom_name}.
         </p>
       </div>
 
@@ -76,7 +74,7 @@ export const CoupleBudgetPage: React.FC = () => {
         <StatCard
           title="Agreed Wedding Contract"
           value={formatINR(totalContract)}
-          subtitle="Fixed full-service package"
+          subtitle={wedding.package_fee ? `Planning budget: ${formatINR(wedding.budget_allocated)}` : "Signed package fee has not been recorded"}
           icon={<DollarSign className="w-5 h-5 text-forest-800" />}
         />
         <StatCard

@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { APP_NAME } from "@/lib/constants";
+import { services } from "@/services";
 
 export const Navbar: React.FC = () => {
-  const { user, switchRole, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -83,8 +84,8 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            {/* Couple Portal */}
-            <Link
+            {/* Couple portal belongs only to a couple account. */}
+            {user?.role === "couple" && <Link
               to="/couple/dashboard"
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 isCouple
@@ -94,10 +95,10 @@ export const Navbar: React.FC = () => {
             >
               <Heart className="w-3.5 h-3.5 text-rose-500" />
               Couple Sanctuary
-            </Link>
+            </Link>}
 
             {/* Wedding Builder */}
-            <Link
+            {(user?.role === "admin" || user?.role === "planner") && <Link
               to="/builder"
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 isBuilder
@@ -107,49 +108,13 @@ export const Navbar: React.FC = () => {
             >
               <Calendar className="w-3.5 h-3.5 text-gold-700" />
               Wedding Builder
-            </Link>
+            </Link>}
           </nav>
         </div>
 
         {/* Right side controls */}
         <div className="flex items-center gap-2.5">
-          {/* Quick Demo Role Switcher (accessible for evaluator convenience) */}
-          <div className="hidden lg:flex items-center gap-1 bg-ivory-100 p-1 rounded-xl border border-border">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2">Role:</span>
-            <button
-              onClick={() => switchRole("admin")}
-              title="Switch to Admin / Founder role"
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                user?.role === "admin"
-                  ? "bg-white shadow-xs font-bold text-forest-900 border border-border"
-                  : "text-forest-700 hover:text-forest-900"
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              onClick={() => switchRole("planner")}
-              title="Switch to Lead Planner role"
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                user?.role === "planner"
-                  ? "bg-white shadow-xs font-bold text-forest-900 border border-border"
-                  : "text-forest-700 hover:text-forest-900"
-              }`}
-            >
-              Planner
-            </button>
-            <button
-              onClick={() => switchRole("couple")}
-              title="Switch to Couple role"
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                user?.role === "couple"
-                  ? "bg-white shadow-xs font-bold text-rose-900 border border-border"
-                  : "text-forest-700 hover:text-rose-900"
-              }`}
-            >
-              Couple
-            </button>
-          </div>
+          {services.isDemo && (<span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-900">Demo preview · not persistent</span>)}
 
           {/* User Profile or Sign In */}
           {isAuthenticated && user ? (
@@ -214,7 +179,7 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
-            <Link
+            {user?.role === "couple" && <Link
               to="/couple/dashboard"
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold ${
@@ -223,9 +188,9 @@ export const Navbar: React.FC = () => {
             >
               <Heart className="w-4 h-4 text-rose-500" />
               Couple Sanctuary
-            </Link>
+            </Link>}
 
-            <Link
+            {(user?.role === "admin" || user?.role === "planner") && <Link
               to="/builder"
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold ${
@@ -234,50 +199,10 @@ export const Navbar: React.FC = () => {
             >
               <Calendar className="w-4 h-4 text-gold-700" />
               Wedding Builder
-            </Link>
+            </Link>}
           </div>
 
-          {/* Mobile Role Switcher for Evaluators */}
-          <div className="pt-3 border-t border-border">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Testing Role Switcher
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-                onClick={() => {
-                  switchRole("admin");
-                  setMobileMenuOpen(false);
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center border ${
-                  user?.role === "admin" ? "bg-forest-800 text-ivory border-forest-900" : "bg-ivory-50 text-forest-800 border-border"
-                }`}
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => {
-                  switchRole("planner");
-                  setMobileMenuOpen(false);
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center border ${
-                  user?.role === "planner" ? "bg-forest-800 text-ivory border-forest-900" : "bg-ivory-50 text-forest-800 border-border"
-                }`}
-              >
-                Planner
-              </button>
-              <button
-                onClick={() => {
-                  switchRole("couple");
-                  setMobileMenuOpen(false);
-                }}
-                className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center border ${
-                  user?.role === "couple" ? "bg-forest-800 text-ivory border-forest-900" : "bg-ivory-50 text-forest-800 border-border"
-                }`}
-              >
-                Couple
-              </button>
-            </div>
-          </div>
+          {services.isDemo && (<p className="border-t border-border pt-3 text-[11px] text-amber-900">Demo preview only. Sign out and authenticate with a different demo profile to change accounts.</p>)}
 
           {/* User Signout or Signin */}
           <div className="pt-2 border-t border-border flex items-center justify-between">

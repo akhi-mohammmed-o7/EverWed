@@ -6,12 +6,12 @@ import {
   Users,
   CheckCircle2,
   DollarSign,
-  Palette,
   Sparkles,
   ShoppingBag,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
 import { services } from "@/services";
+import { useAuth } from "@/context/AuthContext";
 import type { Wedding } from "@/types";
 
 const coupleTabs = [
@@ -22,23 +22,25 @@ const coupleTabs = [
   { label: "Planning Checklist", icon: CheckCircle2, path: "/couple/checklist" },
   { label: "Budget & Payments", icon: DollarSign, path: "/couple/budget" },
   { label: "Curated Vendors", icon: ShoppingBag, path: "/couple/vendors" },
-  { label: "Inspiration Board", icon: Palette, path: "/couple/moodboard" },
 ];
 
 export const CoupleLayout: React.FC = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const [wedding, setWedding] = useState<Wedding | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const loadWedding = async () => {
       try {
-        const list = await services.weddings.list();
-        if (mounted && list && list.length > 0) {
-          // If a custom created wedding is stored in session, prefer it
-          const savedId = localStorage.getItem("active_wedding_id");
-          const found = savedId ? list.find((w) => w.id === savedId) : null;
-          setWedding(found || list[0]);
+        if (!user?.wedding_id) {
+          if (mounted) setWedding(null);
+          return;
+        }
+        const selected = await services.weddings.get(user.wedding_id);
+        if (mounted) {
+          setWedding(selected);
+          localStorage.setItem("active_wedding_id", selected.id);
         }
       } catch (err) {
         console.error("Failed to load active wedding in CoupleLayout:", err);
@@ -48,15 +50,15 @@ export const CoupleLayout: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user?.wedding_id]);
 
   const coupleTitle = wedding
     ? `${wedding.bride_name} & ${wedding.groom_name}`
-    : "Aisha & Vikram";
-  const weddingTitle = wedding?.title || "The Royal Union";
-  const locationText = wedding?.destination || "City Palace & Rambagh, Jaipur";
-  const datesText = wedding ? `${wedding.start_date} to ${wedding.end_date}` : "10-13 December 2026";
-  const guestText = wedding?.guest_estimate ? `${wedding.guest_estimate} Guests` : "450 Guests";
+    : "Your couple account";
+  const weddingTitle = wedding?.title || "Wedding workspace";
+  const locationText = wedding?.destination || "Location not set";
+  const datesText = wedding ? `${wedding.start_date} to ${wedding.end_date}` : "Dates not set";
+  const guestText = wedding?.guest_estimate ? `${wedding.guest_estimate} Guests` : "Guest count not set";
 
   return (
     <div className="min-h-screen bg-ivory-50 flex flex-col font-sans">
@@ -79,15 +81,6 @@ export const CoupleLayout: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              to="/builder"
-              className="px-4 py-2 rounded-xl bg-gold text-forest-950 text-xs font-bold hover:bg-gold-400 transition-colors shadow-sm inline-flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Customize Package
-            </Link>
-          </div>
         </div>
       </div>
 

@@ -12,24 +12,23 @@ import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { Quote } from "@/types";
 import { formatINR, getActiveWeddingId } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export const CoupleVendorsPage: React.FC = () => {
+  const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const activeId = getActiveWeddingId();
+    const activeId = user?.wedding_id || getActiveWeddingId();
+    if (!activeId) { setQuotes([]); setIsLoading(false); return; }
     services.quotes.list(activeId)
       .then((list) => {
         setQuotes(list.filter((q) => q.status === "selected"));
         setIsLoading(false);
       })
-      .catch(async () => {
-        const list = await services.quotes.list("wed-royal-jaipur-001");
-        setQuotes(list.filter((q) => q.status === "selected"));
-        setIsLoading(false);
-      });
-  }, []);
+      .catch((error) => { console.error("Unable to load this wedding's vendors:", error); setQuotes([]); setIsLoading(false); });
+  }, [user?.wedding_id]);
 
   return (
     <div className="space-y-6 font-sans">

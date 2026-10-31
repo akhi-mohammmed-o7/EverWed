@@ -126,6 +126,6 @@ export function formatStatusLabel(status: string): string {
 }
 
 export function getActiveWeddingId(): string {
-  return localStorage.getItem("active_wedding_id") || "wed-royal-jaipur-001";
+  return localStorage.getItem("active_wedding_id") || "";
 }
 

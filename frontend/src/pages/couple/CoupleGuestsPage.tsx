@@ -17,9 +17,13 @@ import { Modal } from "@/components/ui/Modal";
 import { services } from "@/services";
 import type { Guest } from "@/types";
 import { getActiveWeddingId } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import type { Wedding } from "@/types";
 
 export const CoupleGuestsPage: React.FC = () => {
+  const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [wedding, setWedding] = useState<Wedding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sideFilter, setSideFilter] = useState<string>("all");
@@ -34,7 +38,7 @@ export const CoupleGuestsPage: React.FC = () => {
     side: "bride",
     rsvp_status: "confirmed",
     meal_preference: "Vegetarian",
-    table_number: "Royal A2",
+    table_number: "",
     is_vip: false,
     plus_ones: 0,
     notes: "",
@@ -43,7 +47,7 @@ export const CoupleGuestsPage: React.FC = () => {
   const loadGuests = () => {
     setIsLoading(true);
     services.guests
-      .list(getActiveWeddingId())
+      .list(user?.wedding_id || getActiveWeddingId())
       .then((data) => setGuests(data))
       .catch((err) => console.error(err))
       .finally(() => setIsLoading(false));
@@ -51,7 +55,8 @@ export const CoupleGuestsPage: React.FC = () => {
 
   useEffect(() => {
     loadGuests();
-  }, []);
+    if (user?.wedding_id) services.weddings.get(user.wedding_id).then(setWedding).catch((error) => console.error("Unable to load wedding estimate:", error));
+  }, [user?.wedding_id]);
 
   const handleAddGuest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +72,7 @@ export const CoupleGuestsPage: React.FC = () => {
         side: "bride",
         rsvp_status: "confirmed",
         meal_preference: "Vegetarian",
-        table_number: "Royal A2",
+        table_number: "",
         is_vip: false,
         plus_ones: 0,
         notes: "",
@@ -120,20 +125,21 @@ export const CoupleGuestsPage: React.FC = () => {
 
         <Button variant="gold" onClick={() => setIsAddModalOpen(true)} className="font-bold">
           <Plus className="w-4 h-4 mr-1.5" />
-          Add Royal Guest
+          Add guest
         </Button>
       </div>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <StatCard title="Planned guest estimate" value={wedding?.guest_estimate ?? "—"} subtitle="Planning estimate" icon={<Users className="w-5 h-5 text-forest-800" />} />
         <StatCard
-          title="Total Guests on Record"
+          title="Guests on record"
           value={totalHeadcount}
           subtitle={`${guests.length} invitations sent`}
           icon={<Users className="w-5 h-5 text-forest-800" />}
         />
         <StatCard
-          title="Confirmed RSVPs"
+          title="Confirmed invitations"
           value={confirmedCount}
           subtitle={`${Math.round((confirmedCount / (guests.length || 1)) * 100)}% attendance confirmed`}
           icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
@@ -145,7 +151,7 @@ export const CoupleGuestsPage: React.FC = () => {
           icon={<Clock className="w-5 h-5 text-amber-600" />}
         />
         <StatCard
-          title="VIP Entourage"
+          title="VIP guests"
           value={vipCount}
           subtitle="Special security & concierge"
           icon={<Crown className="w-5 h-5 text-gold-700" />}
@@ -259,7 +265,7 @@ export const CoupleGuestsPage: React.FC = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Add Royal Guest Invitation"
+        title="Add guest invitation"
         subtitle="Record contact details, banquet meal choice, and table seating."
       >
         <form onSubmit={handleAddGuest} className="space-y-3.5 text-xs">

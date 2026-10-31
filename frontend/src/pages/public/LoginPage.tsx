@@ -1,176 +1,99 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Shield, Heart, Briefcase, ArrowRight, Lock, User as UserIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Heart, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EverWedLogo } from "@/components/ui/EverWedLogo";
 import { useAuth } from "@/context/AuthContext";
+import { services } from "@/services";
 
-export const LoginPage: React.FC = () => {
+export type AuthPortal = "founder" | "planner" | "couple";
+const portalDetails = {
+  founder: { title: "Founder portal", role: "admin", description: "Company overview and team access", icon: ShieldCheck, destination: "/planner" },
+  planner: { title: "Planner portal", role: "planner", description: "Your assigned wedding workspaces", icon: UserRound, destination: "/planner" },
+  couple: { title: "Couple portal", role: "couple", description: "Your wedding planning journey", icon: Heart, destination: "/couple/dashboard" },
+} as const;
+
+export const PortalSelectionPage: React.FC = () => (
+  <main className="min-h-screen bg-ivory-50 px-4 py-12 sm:py-16">
+    <div className="mx-auto max-w-4xl">
+      <div className="text-center">
+        <Link to="/" className="inline-block"><EverWedLogo variant="stacked" size="xl" showTagline /></Link>
+        <h1 className="mt-8 font-serif text-3xl font-bold text-forest-900 sm:text-4xl">Choose your portal</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Your access is determined by your account. Portal selection never changes your role.</p>
+      </div>
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {(Object.entries(portalDetails) as [AuthPortal, (typeof portalDetails)[AuthPortal]][]).map(([key, portal]) => {
+          const Icon = portal.icon;
+          return <Card key={key} className="flex flex-col p-6"><Icon className="h-7 w-7 text-gold-700" /><h2 className="mt-4 font-serif text-xl font-semibold text-forest-900">{portal.title}</h2><p className="mt-1 flex-1 text-sm text-muted-foreground">{portal.description}</p><Link to={`/login/${key}`} className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-900">Continue<ArrowRight className="h-4 w-4" /></Link>{key === "couple" && <Link to="/register/couple" className="mt-3 text-center text-sm font-semibold text-forest-800 hover:underline">Create a couple account</Link>}</Card>;
+        })}
+      </div>
+      {!services.isDemo && <p className="mt-6 text-center text-xs text-muted-foreground">The first Founder account is securely created from the Founder portal when this database has no accounts.</p>}
+      {services.isDemo && <p role="status" className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-xs text-amber-950">Demo preview only. Accounts and records are simulated and are not saved to SQLite.</p>}
+    </div>
+  </main>
+);
+
+export const LoginPage: React.FC<{ portal: AuthPortal }> = ({ portal }) => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login } = useAuth();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  const { login, setupFounder, logout } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [founderName, setFounderName] = useState("");
+  const [setupAvailable, setSetupAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const details = portalDetails[portal];
+  const Icon = details.icon;
 
-  const from = (location.state as any)?.from?.pathname || null;
+  useEffect(() => {
+    if (portal !== "founder" || services.isDemo) return;
+    void services.auth.founderSetupAvailable().then(setSetupAvailable).catch(() => setSetupAvailable(false));
+  }, [portal]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsLoading(true);
-    setError(null);
+    setError("");
     try {
-      await login({ username, password });
-      if (from) {
-        navigate(from, { replace: true });
-      } else {
-        navigate(username === "couple" ? "/couple/dashboard" : "/planner", { replace: true });
+      if (portal === "founder" && setupAvailable) {
+        await setupFounder({ name: founderName.trim(), email: email.trim(), password });
+        navigate("/planner", { replace: true });
+        return;
       }
-    } catch (err: any) {
-      setError(err?.message || "Invalid login credentials. Please check username and password.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickDemo = async (role: "admin" | "planner" | "couple") => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      if (role === "admin") {
-        await login({ username: "admin", password: "admin" });
-        navigate(from || "/planner", { replace: true });
-      } else if (role === "planner") {
-        await login({ username: "planner", password: "password" });
-        navigate(from || "/planner", { replace: true });
-      } else {
-        await login({ username: "couple", password: "password" });
-        navigate(from || "/couple/dashboard", { replace: true });
+      const account = await login({ username: email.trim(), password });
+      if (account.role !== details.role) {
+        await logout();
+        const correctPortal = account.role === "admin" ? "Founder" : account.role === "planner" ? "Planner" : account.role === "couple" ? "Couple" : "authorised";
+        setError(`This account uses the ${correctPortal} portal. Sign in there to continue.`);
+        return;
       }
-    } catch (err: any) {
-      setError(err?.message || "Quick demo login failed.");
+      navigate(account.role === "couple" ? account.wedding_id ? "/couple/dashboard" : "/couple/onboarding" : details.destination, { replace: true });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to sign in. Check your details and try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-ivory-50 flex flex-col justify-center items-center p-4 font-sans relative overflow-hidden">
-      {/* Refined ambient background */}
-      <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#D7B875_1px,transparent_1px)] [background-size:24px_24px]" />
-      <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-gold/10 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-burgundy-900/10 blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 w-full max-w-md space-y-6">
-        {/* Brand Header */}
-        <div className="text-center space-y-3">
-          <Link to="/" className="inline-block transition-transform hover:scale-102">
-            <EverWedLogo variant="stacked" size="xl" showTagline={true} />
-          </Link>
-          <div className="pt-2">
-            <h2 className="font-serif text-2xl font-bold text-forest-900">Sign In to EverWed</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Select your workspace to access wedding planning operations or couple portal
-            </p>
-          </div>
-        </div>
-
-        <Card className="p-6 sm:p-8 space-y-5 shadow-xl border-border bg-white/95 backdrop-blur-sm">
-          {error && (
-            <div className="p-3.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl text-xs font-semibold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-            <div>
-              <label className="label-base flex items-center gap-1.5">
-                <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                Username or Email
-              </label>
-              <input
-                type="text"
-                required
-                className="input-base"
-                placeholder="e.g. admin or couple"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label-base flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                className="input-base"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            <Button type="submit" variant="gold" className="w-full font-bold shadow-md hover:shadow-lg transition-all" isLoading={isLoading}>
-              Sign In to Platform
-              <ArrowRight className="w-4 h-4 ml-1.5" />
-            </Button>
+    <main className="flex min-h-screen items-center justify-center bg-ivory-50 px-4 py-10">
+      <div className="w-full max-w-md space-y-5">
+        <Link to="/login" className="inline-flex items-center gap-2 text-sm font-medium text-forest-800 hover:underline"><ArrowLeft className="h-4 w-4" />All portals</Link>
+        <header className="text-center"><Link to="/"><EverWedLogo variant="stacked" size="xl" showTagline /></Link><div className="mt-6 inline-flex rounded-full bg-gold/15 p-3 text-gold-800"><Icon className="h-6 w-6" /></div><h1 className="mt-3 font-serif text-3xl font-bold text-forest-900">{setupAvailable ? "Set up Founder access" : details.title}</h1><p className="mt-1 text-sm text-muted-foreground">{setupAvailable ? "Create the first Founder account for this local workspace." : details.description}</p></header>
+        <Card className="p-6 sm:p-8">
+          {error && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
+          <form onSubmit={submit} className="space-y-4">
+            {setupAvailable && <label className="block text-sm font-medium text-forest-900">Founder name<input required maxLength={120} autoComplete="name" value={founderName} onChange={(event) => setFounderName(event.target.value)} className="input-base mt-1" /></label>}
+            <label className="block text-sm font-medium text-forest-900">Email<input required type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="input-base mt-1" /></label>
+            <label className="block text-sm font-medium text-forest-900"><span className="inline-flex items-center gap-2"><LockKeyhole className="h-4 w-4" />Password</span><input required minLength={setupAvailable ? 12 : undefined} type="password" autoComplete={setupAvailable ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="input-base mt-1" /></label>
+            <Button type="submit" variant="gold" className="w-full" isLoading={isLoading}>{setupAvailable ? "Create Founder account" : `Sign in to ${portal} portal`}<ArrowRight className="ml-2 h-4 w-4" /></Button>
           </form>
-
-          {/* Quick Demo Access Buttons */}
-          <div className="pt-5 border-t border-border space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                1-Click Role Testing Access
-              </span>
-              <span className="text-[10px] text-gold-700 font-semibold bg-gold/15 px-2 py-0.5 rounded-full">
-                Demo Ready
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickDemo("admin")}
-                className="text-[11px] font-semibold flex flex-col items-center py-2 h-auto hover:bg-forest-50 hover:border-forest-700"
-              >
-                <Shield className="w-4 h-4 text-forest-800 mb-1" />
-                Founder/Admin
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickDemo("planner")}
-                className="text-[11px] font-semibold flex flex-col items-center py-2 h-auto hover:bg-gold/15 hover:border-gold-600"
-              >
-                <Briefcase className="w-4 h-4 text-gold-700 mb-1" />
-                Lead Planner
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickDemo("couple")}
-                className="text-[11px] font-semibold flex flex-col items-center py-2 h-auto hover:bg-rose-50 hover:border-rose-300"
-              >
-                <Heart className="w-4 h-4 text-rose-600 mb-1" />
-                Couple
-              </Button>
-            </div>
-          </div>
+          {portal === "couple" && <p className="mt-5 text-center text-sm text-muted-foreground">New to EverWed? <Link to="/register/couple" className="font-semibold text-forest-800 hover:underline">Create an account</Link></p>}
+          {portal === "planner" && <p className="mt-5 text-center text-sm text-muted-foreground">New planner? <Link to="/register/planner" className="font-semibold text-forest-800 hover:underline">Apply for access</Link></p>}
+          {services.isDemo && <p role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">Preview mode is non-persistent. This portal still checks the selected demo account's simulated role.</p>}
         </Card>
-
-        {/* Footer note */}
-        <p className="text-center text-[11px] text-muted-foreground">
-          Protected by EverWed Enterprise Security • Standard XML-RPC API
-        </p>
       </div>
-    </div>
+    </main>
   );
 };

@@ -10,20 +10,23 @@ import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { Task } from "@/types";
 import { formatDate, getActiveWeddingId } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export const CoupleChecklistPage: React.FC = () => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
 
   const loadTasks = async () => {
     try {
-      const activeId = getActiveWeddingId();
+      const activeId = user?.wedding_id || getActiveWeddingId();
+      if (!activeId) { setTasks([]); return; }
       const list = await services.tasks.list(activeId);
       setTasks(list);
-    } catch {
-      const list = await services.tasks.list("wed-royal-jaipur-001");
-      setTasks(list);
+    } catch (error) {
+      console.error("Unable to load this wedding's checklist:", error);
+      setTasks([]);
     } finally {
       setIsLoading(false);
     }
@@ -31,7 +34,7 @@ export const CoupleChecklistPage: React.FC = () => {
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [user?.wedding_id]);
 
   const handleToggle = async (taskId: string, currentStatus: string) => {
     const next = currentStatus === "done" ? "in_progress" : "done";
@@ -54,7 +57,7 @@ export const CoupleChecklistPage: React.FC = () => {
             Wedding Planning Checklist & Decisions
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Transparent view of all {tasks.length} luxury operational tasks being managed by The Royal Knot entourage.
+            Transparent view of all {tasks.length} luxury operational tasks being managed by EverWed entourage.
           </p>
         </div>
 

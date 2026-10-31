@@ -9,7 +9,9 @@ import { CoupleLayout } from "@/components/layout/CoupleLayout";
 
 // Public Pages
 import { LandingPage } from "@/pages/public/LandingPage";
-import { LoginPage } from "@/pages/public/LoginPage";
+import { LoginPage, PortalSelectionPage } from "@/pages/public/LoginPage";
+import { CoupleSignupPage } from "@/pages/public/CoupleSignupPage";
+import { CoupleOnboardingPage } from "@/pages/couple/CoupleOnboardingPage";
 import { WeddingBuilderPage } from "@/pages/builder/WeddingBuilderPage";
 
 // Planner Pages
@@ -23,6 +25,8 @@ import { TasksPage } from "@/pages/planner/TasksPage";
 import { OperationsPage } from "@/pages/planner/OperationsPage";
 import { FinancePage } from "@/pages/planner/FinancePage";
 import { RiskRadarPage } from "@/pages/planner/RiskRadarPage";
+import { TeamManagementPage } from "@/pages/planner/TeamManagementPage";
+import { PlannerHomePage } from "@/pages/planner/PlannerHomePage";
 
 // Couple Pages
 import { CoupleDashboardPage } from "@/pages/couple/CoupleDashboardPage";
@@ -32,7 +36,12 @@ import { CoupleGuestsPage } from "@/pages/couple/CoupleGuestsPage";
 import { CoupleChecklistPage } from "@/pages/couple/CoupleChecklistPage";
 import { CoupleBudgetPage } from "@/pages/couple/CoupleBudgetPage";
 import { CoupleVendorsPage } from "@/pages/couple/CoupleVendorsPage";
-import { CoupleMoodboardPage } from "@/pages/couple/CoupleMoodboardPage";
+import { PlannerSignupPage } from "@/pages/public/PlannerSignupPage";
+
+const PlannerWorkspaceHome: React.FC = () => {
+  const { user } = useAuth();
+  return user?.role === "admin" ? <OverviewPage /> : <PlannerHomePage />;
+};
 
 /**
  * Route protection wrapper verifying authentication and role authorization.
@@ -70,14 +79,33 @@ const ProtectedRoute: React.FC<{
     return <Navigate to="/planner" replace />;
   }
 
+  if (user.role === "couple" && location.pathname !== "/couple/onboarding" && !user.wedding_id) {
+    return <Navigate to="/couple/onboarding" replace />;
+  }
+  if (user.role === "couple" && location.pathname === "/couple/onboarding" && user.wedding_id) {
+    return <Navigate to="/couple/dashboard" replace />;
+  }
+
   return <>{children}</>;
 };
 
 export const router = createBrowserRouter([
   // Public Routes
   { path: "/", element: <LandingPage /> },
-  { path: "/login", element: <LoginPage /> },
-  { path: "/builder", element: <WeddingBuilderPage /> },
+  { path: "/login", element: <PortalSelectionPage /> },
+  { path: "/login/founder", element: <LoginPage portal="founder" /> },
+  { path: "/login/planner", element: <LoginPage portal="planner" /> },
+  { path: "/login/couple", element: <LoginPage portal="couple" /> },
+  { path: "/register/couple", element: <CoupleSignupPage /> },
+  { path: "/register/planner", element: <PlannerSignupPage /> },
+  {
+    path: "/builder",
+    element: (
+      <ProtectedRoute allowedRoles={["admin", "planner"]}>
+        <WeddingBuilderPage />
+      </ProtectedRoute>
+    ),
+  },
 
   // Planner Workspace (Admin & Planner only)
   {
@@ -88,7 +116,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <OverviewPage /> },
+      { index: true, element: <PlannerWorkspaceHome /> },
       { path: "enquiries", element: <EnquiriesPage /> },
       { path: "weddings", element: <WeddingsPage /> },
       { path: "weddings/:id", element: <WeddingDetailPage /> },
@@ -98,6 +126,7 @@ export const router = createBrowserRouter([
       { path: "operations", element: <OperationsPage /> },
       { path: "finance", element: <FinancePage /> },
       { path: "risk-radar", element: <RiskRadarPage /> },
+      { path: "team", element: <TeamManagementPage /> },
     ],
   },
 
@@ -105,12 +134,13 @@ export const router = createBrowserRouter([
   {
     path: "/couple",
     element: (
-      <ProtectedRoute allowedRoles={["couple", "admin", "planner"]}>
+      <ProtectedRoute allowedRoles={["couple"]}>
         <CoupleLayout />
       </ProtectedRoute>
     ),
     children: [
       { index: true, element: <Navigate to="/couple/dashboard" replace /> },
+      { path: "onboarding", element: <CoupleOnboardingPage /> },
       { path: "dashboard", element: <CoupleDashboardPage /> },
       { path: "overview", element: <CoupleOverviewPage /> },
       { path: "events", element: <CoupleEventsPage /> },
@@ -118,7 +148,6 @@ export const router = createBrowserRouter([
       { path: "checklist", element: <CoupleChecklistPage /> },
       { path: "budget", element: <CoupleBudgetPage /> },
       { path: "vendors", element: <CoupleVendorsPage /> },
-      { path: "moodboard", element: <CoupleMoodboardPage /> },
     ],
   },
 

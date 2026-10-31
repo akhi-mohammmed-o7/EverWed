@@ -1,5 +1,7 @@
 import type {
   User,
+  UserCreate,
+  CoupleSignupRequest,
   LoginRequest,
   LoginResponse,
   Enquiry,
@@ -39,8 +41,16 @@ import type {
 
 export interface AuthService {
   login(payload: LoginRequest): Promise<LoginResponse>;
+  setupFounder(payload: { name: string; email: string; password: string }): Promise<LoginResponse>;
+  founderSetupAvailable(): Promise<boolean>;
   logout(): Promise<void>;
   me(): Promise<User>;
+  listUsers(): Promise<User[]>;
+  createUser(payload: UserCreate): Promise<User>;
+  setUserActive(uid: number, active: boolean): Promise<User>;
+  registerCouple(payload: CoupleSignupRequest): Promise<LoginResponse>;
+  registerPlanner(payload: { name: string; email: string; phone: string; password: string }): Promise<{ message: string }>;
+  setPlannerApproval(uid: number, status: "approved" | "rejected"): Promise<User>;
 }
 
 export interface EnquiryService {
@@ -56,6 +66,8 @@ export interface WeddingService {
   get(id: string): Promise<Wedding>;
   create(payload: WeddingCreate): Promise<Wedding>;
   update(id: string, payload: WeddingUpdate): Promise<Wedding>;
+  assignPlanner(id: string, plannerEmail: string): Promise<Wedding>;
+  onboardCouple(payload: import("@/types").CoupleWeddingOnboarding): Promise<Wedding>;
 }
 
 export interface EventService {

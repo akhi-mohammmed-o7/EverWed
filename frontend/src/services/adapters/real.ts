@@ -4,6 +4,9 @@ import type {
   LoginRequest,
   LoginResponse,
   User,
+  UserCreate,
+  CoupleSignupRequest,
+  CoupleWeddingOnboarding,
   Enquiry,
   EnquiryCreate,
   EnquiryUpdate,
@@ -45,8 +48,17 @@ export const realAdapter: ServiceAdapter = {
   auth: {
     login: (payload: LoginRequest): Promise<LoginResponse> =>
       apiClient.post<LoginResponse>("/api/v1/auth/login", payload),
+    setupFounder: (payload) => apiClient.post<LoginResponse>("/api/v1/auth/setup", payload),
+    founderSetupAvailable: async () =>
+      (await apiClient.get<{ available: boolean }>("/api/v1/auth/setup/status")).available,
     logout: () => apiClient.post<void>("/api/v1/auth/logout", {}),
     me: () => apiClient.get<User>("/api/v1/auth/me"),
+    listUsers: () => apiClient.get<User[]>("/api/v1/auth/users"),
+    createUser: (payload: UserCreate) => apiClient.post<User>("/api/v1/auth/users", payload),
+    setUserActive: (uid, active) => apiClient.patch<User>(`/api/v1/auth/users/${uid}/status`, { active }),
+    registerCouple: (payload: CoupleSignupRequest) => apiClient.post<LoginResponse>("/api/v1/auth/couple-signup", payload),
+    registerPlanner: (payload) => apiClient.post<{ message: string }>("/api/v1/auth/planner-signup", payload),
+    setPlannerApproval: (uid, status) => apiClient.patch<User>(`/api/v1/auth/users/${uid}/approval`, { status }),
   },
 
   enquiries: {
@@ -69,6 +81,9 @@ export const realAdapter: ServiceAdapter = {
     get: (id) => apiClient.get<Wedding>(`/api/v1/weddings/${id}`),
     create: (payload: WeddingCreate) => apiClient.post<Wedding>("/api/v1/weddings", payload),
     update: (id, payload: WeddingUpdate) => apiClient.patch<Wedding>(`/api/v1/weddings/${id}`, payload),
+    assignPlanner: (id, plannerEmail) =>
+      apiClient.post<Wedding>(`/api/v1/weddings/${id}/planner-assignment`, { planner_email: plannerEmail }),
+    onboardCouple: (payload: CoupleWeddingOnboarding) => apiClient.post<Wedding>("/api/v1/weddings/onboarding", payload),
   },
 
   events: {
@@ -159,10 +174,10 @@ export const realAdapter: ServiceAdapter = {
   },
 
   guests: {
-    list: (_weddingId) => Promise.resolve([]),
-    create: (guest) => Promise.resolve({ id: "g-" + Date.now(), ...guest } as Guest),
-    update: (id, payload) => Promise.resolve({ id, ...payload } as Guest),
-    delete: (_id) => Promise.resolve(),
+    list: (weddingId) => apiClient.get<Guest[]>(`/api/v1/weddings/${weddingId}/guests`),
+    create: ({ wedding_id, ...payload }) => apiClient.post<Guest>(`/api/v1/weddings/${wedding_id}/guests`, payload),
+    update: (id, payload) => apiClient.patch<Guest>(`/api/v1/guests/${id}`, payload),
+    delete: (id) => apiClient.delete<{ deleted: boolean }>(`/api/v1/guests/${id}`).then(() => undefined),
   },
 };
 

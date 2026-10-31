@@ -13,22 +13,30 @@ export class APIError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("auth_token");
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
-  const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  const json = await response.json();
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
+  const body = await response.text();
+  let json: any;
+  try {
+    json = body ? JSON.parse(body) : {};
+  } catch {
+    throw new APIError(response.status, "INVALID_API_RESPONSE", "The server returned an unreadable response.");
+  }
 
   if (!response.ok || !json.success) {
     const err = json.error;
     throw new APIError(
       response.status,
       err?.code ?? "UNKNOWN",
-      err?.message ?? "Request failed",
+      err?.message ?? (response.status === 401 ? "Please sign in again." : "Request failed"),
       err?.detail
     );
   }

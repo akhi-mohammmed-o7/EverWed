@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { services } from "@/services";
 import type { Wedding, WeddingEvent, Task } from "@/types";
-import { formatINR, formatDate, daysUntil, getActiveWeddingId } from "@/lib/utils";
+import { formatINR, formatDate, daysUntil } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export const CoupleDashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [events, setEvents] = useState<WeddingEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -30,14 +32,9 @@ export const CoupleDashboardPage: React.FC = () => {
     let mounted = true;
     const loadDashboard = async () => {
       try {
-        const activeId = getActiveWeddingId();
-        let w: Wedding;
-        try {
-          w = await services.weddings.get(activeId);
-        } catch {
-          const all = await services.weddings.list();
-          w = all[0];
-        }
+        const activeId = user?.wedding_id;
+        if (!activeId) return;
+        const w = await services.weddings.get(activeId);
         if (!mounted || !w) return;
         setWedding(w);
         const [evts, tsks] = await Promise.all([
@@ -57,7 +54,7 @@ export const CoupleDashboardPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user?.wedding_id]);
 
   if (isLoading || !wedding) {
     return <div className="p-12 text-center text-xs text-muted-foreground">Opening your couple sanctuary...</div>;
@@ -83,13 +80,13 @@ export const CoupleDashboardPage: React.FC = () => {
               {wedding.bride_name} & {wedding.groom_name}
             </h1>
             <p className="text-sm text-ivory-300">
-              {wedding.primary_venue} • {wedding.guest_estimate} Royal Guests
+              {wedding.primary_venue} • {wedding.guest_estimate} estimated guests
             </p>
           </div>
 
           {/* Countdown Clock Box */}
           <div className="bg-forest-950/80 p-5 rounded-2xl border border-gold/30 text-center shrink-0 min-w-[200px]">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gold">Countdown to Pheras</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gold">Wedding countdown</p>
             <div className="font-serif text-4xl sm:text-5xl font-bold text-ivory mt-1">
               {Math.max(0, daysLeft)}
             </div>

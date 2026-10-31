@@ -13,8 +13,10 @@ import {
   ChevronRight,
   Menu,
   X,
+  Users,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
+import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { label: "Executive Overview", icon: LayoutDashboard, path: "/planner" },
@@ -26,13 +28,16 @@ const navItems = [
   { label: "Day-of Operations", icon: Clock, path: "/planner/operations" },
   { label: "Financial Statement", icon: DollarSign, path: "/planner/finance" },
   { label: "Wedding Risk Radar", icon: AlertTriangle, path: "/planner/risk-radar" },
+  { label: "Team & Access", icon: Users, path: "/planner/team", adminOnly: true },
 ];
 
 export const PlannerLayout: React.FC = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const visibleNavItems = navItems.filter((item) => !("adminOnly" in item) || user?.role === "admin");
 
-  const currentItem = navItems.find((item) =>
+  const currentItem = visibleNavItems.find((item) =>
     item.path === "/planner" ? location.pathname === "/planner" : location.pathname.startsWith(item.path)
   ) || navItems[0];
 
@@ -64,7 +69,7 @@ export const PlannerLayout: React.FC = () => {
             Operations Modules
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.path === "/planner"
@@ -110,7 +115,7 @@ export const PlannerLayout: React.FC = () => {
               </div>
             </div>
 
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.path === "/planner"

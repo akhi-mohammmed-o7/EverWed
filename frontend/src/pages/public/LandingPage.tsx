@@ -511,7 +511,7 @@ export const LandingPage: React.FC = () => {
                 <Shield className="w-8 h-8 text-gold mb-4" />
                 <h4 className="font-serif text-lg font-bold text-ivory">Odoo ERP Resilience</h4>
                 <p className="text-xs text-ivory-300 mt-2 leading-relaxed">
-                  Real XML-RPC integration with Odoo standard apps, paired with resilient offline mock fallback for uninterrupted field execution.
+                  Local-first wedding management with persistent SQLite storage and optional Odoo connectivity when configured.
                 </p>
               </div>
             </RevealOnScroll>

@@ -49,7 +49,10 @@ export const EnquiriesPage: React.FC = () => {
   // Convert Modal State
   const [convertTarget, setConvertTarget] = useState<Enquiry | null>(null);
   const [convertBudget, setConvertBudget] = useState<number>(25000000);
-  const [convertVenue, setConvertVenue] = useState<string>("City Palace, Jaipur");
+  const [confirmedPackageFee, setConfirmedPackageFee] = useState<number>(0);
+  const [convertVenue, setConvertVenue] = useState<string>("");
+  const [convertStartDate, setConvertStartDate] = useState<string>("");
+  const [convertEndDate, setConvertEndDate] = useState<string>("");
   const [isConverting, setIsConverting] = useState(false);
 
   const fetchEnquiries = () => {
@@ -76,6 +79,15 @@ export const EnquiriesPage: React.FC = () => {
     }
   };
 
+  const handleMarkAgreementSigned = async (enquiry: Enquiry) => {
+    try {
+      await services.enquiries.update(enquiry.id, { agreement_signed: true, status: "confirmed" });
+      fetchEnquiries();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleConvert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!convertTarget) return;
@@ -83,10 +95,11 @@ export const EnquiriesPage: React.FC = () => {
     try {
       const res = await services.enquiries.convert(convertTarget.id, {
         confirmed_budget: convertBudget,
+        confirmed_package_fee: confirmedPackageFee,
         primary_venue: convertVenue,
         package_type: convertTarget.package_type,
-        wedding_start_date: convertTarget.target_date || "2026-12-10",
-        wedding_end_date: "2026-12-13",
+        wedding_start_date: convertStartDate,
+        wedding_end_date: convertEndDate,
       });
       setConvertTarget(null);
       fetchEnquiries();
@@ -226,19 +239,30 @@ export const EnquiriesPage: React.FC = () => {
                   </Button>
                 </Link>
               ) : (
+                <div className="w-full space-y-2">
+                {!enq.agreement_signed && (
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => void handleMarkAgreementSigned(enq)}>
+                    <FileText className="w-3.5 h-3.5 mr-1" /> Record signed agreement
+                  </Button>
+                )}
                 <Button
                   variant="gold"
                   size="sm"
                   className="w-full text-xs font-bold"
+                  disabled={!enq.agreement_signed}
                   onClick={() => {
                     setConvertTarget(enq);
                     setConvertBudget(enq.estimated_budget);
-                    setConvertVenue(`Heritage Palace, ${enq.destination}`);
+                    setConfirmedPackageFee(0);
+                    setConvertVenue("");
+                    setConvertStartDate(enq.target_date || "");
+                    setConvertEndDate("");
                   }}
                 >
                   <Sparkles className="w-3.5 h-3.5 mr-1" />
                   Convert to Active Wedding
                 </Button>
+                </div>
               )}
             </div>
           </Card>
@@ -250,7 +274,7 @@ export const EnquiriesPage: React.FC = () => {
         isOpen={!!convertTarget}
         onClose={() => setConvertTarget(null)}
         title="Convert Enquiry to Active Wedding"
-        subtitle={`Provisioning project for ${convertTarget?.bride_name} & ${convertTarget?.groom_name} will automatically generate 25+ standard operational tasks.`}
+        subtitle={`Provisioning project for ${convertTarget?.bride_name} & ${convertTarget?.groom_name} requires a signed agreement and complete wedding dates and venue.`}
       >
         <form onSubmit={handleConvert} className="space-y-4 text-xs">
           <div>
@@ -265,6 +289,19 @@ export const EnquiriesPage: React.FC = () => {
             <p className="text-[11px] text-muted-foreground mt-1">Formatted: {formatINR(convertBudget)}</p>
           </div>
           <div>
+            <label className="label-base">Confirmed client package fee (INR)</label>
+            <input type="number" min="0.01" step="0.01" required className="input-base" value={confirmedPackageFee || ""} onChange={(e) => setConfirmedPackageFee(Number(e.target.value))} />
+            <p className="text-[11px] text-muted-foreground mt-1">This signed fee is tracked separately from the planning budget.</p>
+          </div>
+          <div>
+            <label className="label-base">Wedding start date</label>
+            <input type="date" required className="input-base" value={convertStartDate} onChange={(e) => setConvertStartDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="label-base">Wedding end date</label>
+            <input type="date" required min={convertStartDate || undefined} className="input-base" value={convertEndDate} onChange={(e) => setConvertEndDate(e.target.value)} />
+          </div>
+          <div>
             <label className="label-base">Primary Venue & City</label>
             <input
               type="text"
@@ -274,10 +311,7 @@ export const EnquiriesPage: React.FC = () => {
               onChange={(e) => setConvertVenue(e.target.value)}
             />
           </div>
-          <div className="p-3 bg-gold/10 rounded-xl border border-gold/30 text-forest-800 text-[11px]">
-            <span className="font-bold block text-forest-900 mb-0.5">Automated Task Generation:</span>
-            Converting this enquiry will inject The Royal Knot's 25+ luxury wedding playbook tasks (venue agreement, late-night sound permits, mandap engineering, live dhol, plate audits) into the workspace.
-          </div>
+          <p className="text-[11px] text-muted-foreground">Conversion is available after a signed agreement is recorded. The selected dates and venue will be saved to the wedding plan.</p>
           <div className="flex justify-end gap-2 pt-3">
             <Button type="button" variant="ghost" onClick={() => setConvertTarget(null)}>
               Cancel

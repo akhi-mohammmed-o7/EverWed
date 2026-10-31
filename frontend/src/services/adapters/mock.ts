@@ -1,6 +1,8 @@
 import type { ServiceAdapter } from "./types";
 import type {
   User,
+  UserCreate,
+  CoupleSignupRequest,
   Enquiry,
   Wedding,
   WeddingEvent,
@@ -19,6 +21,11 @@ import type {
 
 let mockToken: string | null = null;
 const mockUser: User = { uid: 1, name: "Priya Arora", email: "priya@everwed.in", role: "admin" };
+let _mockUsers: User[] = [
+  mockUser,
+  { uid: 99, name: "Demo Planner", email: "planner@demo.everwed.local", role: "planner" },
+  { uid: 2, name: "Aisha Sharma", email: "aisha@heritageknot.com", role: "couple", wedding_id: "wed-royal-jaipur-001" },
+];
 
 const NOW = new Date().toISOString();
 const WEDDING_ID = "wed-royal-jaipur-001";
@@ -715,23 +722,31 @@ export const mockAdapter: ServiceAdapter = {
   isDemo: true,
 
   auth: {
+    async setupFounder() {
+      throw new Error("Founder setup is available only when connected to the EverWed backend.");
+    },
+    async founderSetupAvailable() {
+      return false;
+    },
     async login(payload) {
       await delay();
-      if ((payload.username === "admin" && payload.password === "admin") || payload.username === "demo") {
+      if (payload.username === "admin" && payload.password === "admin") {
         mockToken = "session-token-admin-" + Date.now();
         localStorage.setItem("auth_token", mockToken);
         localStorage.setItem("auth_user", JSON.stringify(mockUser));
         return { token: mockToken, user: mockUser };
       }
-      if (payload.username === "couple" || payload.username === "aisha") {
-        const coupleUser: User = { uid: 2, name: "Aisha Sharma", email: "aisha@heritageknot.com", role: "couple" };
+      if (payload.username === "couple" && payload.password === "couple123") {
+        const coupleUser: User = { uid: 2, name: "Aisha Sharma", email: "aisha@heritageknot.com", role: "couple", wedding_id: WEDDING_ID };
         mockToken = "session-token-couple-" + Date.now();
         localStorage.setItem("auth_token", mockToken);
         localStorage.setItem("auth_user", JSON.stringify(coupleUser));
         return { token: mockToken, user: coupleUser };
       }
-      // General fallback login for smooth hackathon demo
-      const user: User = { uid: 99, name: payload.username || "Planner", email: `${payload.username}@everwed.in`, role: "planner" };
+      if (payload.username !== "planner" || payload.password !== "planner123") {
+        throw new Error("Invalid demo credentials. Use the documented demo account and password.");
+      }
+      const user: User = { uid: 99, name: "Demo Planner", email: "planner@demo.everwed.local", role: "planner" };
       mockToken = "session-token-planner-" + Date.now();
       localStorage.setItem("auth_token", mockToken);
       localStorage.setItem("auth_user", JSON.stringify(user));
@@ -751,6 +766,39 @@ export const mockAdapter: ServiceAdapter = {
       }
       return mockUser;
     },
+    async listUsers() {
+      await delay();
+      return [..._mockUsers];
+    },
+    async createUser(payload: UserCreate) {
+      await delay();
+      if (_mockUsers.some((item) => item.email?.toLowerCase() === payload.email.toLowerCase())) {
+        throw new Error("An account with this email already exists.");
+      }
+      const user: User = {
+        uid: Math.max(0, ..._mockUsers.map((item) => item.uid)) + 1,
+        name: payload.name,
+        email: payload.email,
+        role: payload.role,
+        wedding_id: payload.wedding_id,
+      };
+      _mockUsers = [..._mockUsers, user];
+      return user;
+    },
+    async setUserActive(uid: number, active: boolean) {
+      await delay();
+      if (uid === 1 && !active) throw new Error("You cannot deactivate your own Founder account.");
+      const index = _mockUsers.findIndex((item) => item.uid === uid);
+      if (index < 0) throw new Error("Account not found.");
+      const updated = { ..._mockUsers[index], active };
+      _mockUsers[index] = updated;
+      return updated;
+    },
+    async registerCouple(_payload: CoupleSignupRequest) {
+      throw new Error("Couple registration requires the persistent EverWed backend. Disable demo preview to register.");
+    },
+    async registerPlanner() { throw new Error("Planner applications require the persistent EverWed backend."); },
+    async setPlannerApproval() { throw new Error("Planner approval requires the persistent EverWed backend."); },
   },
 
   enquiries: {
@@ -892,6 +940,19 @@ export const mockAdapter: ServiceAdapter = {
       };
       _weddings[idx] = updated;
       return updated;
+    },
+    async assignPlanner(id, plannerEmail) {
+      await delay();
+      const planner = _mockUsers.find((item) => item.email?.toLowerCase() === plannerEmail.toLowerCase() && item.role === "planner");
+      if (!planner) throw new Error("Choose an existing planner account.");
+      const idx = _weddings.findIndex((item) => item.id === id);
+      if (idx < 0) throw new Error(`Wedding '${id}' not found`);
+      const updated = { ..._weddings[idx], assigned_planner_email: planner.email };
+      _weddings[idx] = updated;
+      return updated;
+    },
+    async onboardCouple() {
+      throw new Error("Wedding onboarding requires the persistent EverWed backend.");
     },
   },
 
