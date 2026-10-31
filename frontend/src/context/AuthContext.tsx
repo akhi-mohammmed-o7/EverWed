@@ -7,6 +7,9 @@ export interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean;
+  isPlanner: boolean;
+  isCouple: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   switchRole: (role: "admin" | "couple" | "planner") => void;
@@ -20,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check initial auth state
+    // Check initial auth state from storage
     const savedToken = localStorage.getItem("auth_token");
     const savedUser = localStorage.getItem("auth_user");
     if (savedToken && savedUser) {
@@ -30,14 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {
         localStorage.removeItem("auth_token");
         localStorage.removeItem("auth_user");
+        setToken(null);
+        setUser(null);
       }
     } else {
-      // Default demo login for seamless jury testing
-      const defaultDemoUser: User = { uid: 1, name: "Priya Arora", email: "priya@royalknot.in", role: "admin" };
-      setUser(defaultDemoUser);
-      setToken("demo-session-token");
-      localStorage.setItem("auth_token", "demo-session-token");
-      localStorage.setItem("auth_user", JSON.stringify(defaultDemoUser));
+      // Do not auto-authenticate new visitors; require explicit login
+      setToken(null);
+      setUser(null);
     }
     setIsLoading(false);
   }, []);
@@ -60,16 +62,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchRole = (role: "admin" | "couple" | "planner") => {
     let newUser: User;
+    const newToken = `session-token-${role}-${Date.now()}`;
     if (role === "couple") {
-      newUser = { uid: 2, name: "Aisha & Vikram", email: "aisha@heritageknot.com", role: "couple" };
+      newUser = { uid: 2, name: "Aisha & Vikram", email: "couple@everwed.in", role: "couple" };
     } else if (role === "planner") {
-      newUser = { uid: 3, name: "Rohan Joshi", email: "rohan@royalknot.in", role: "planner" };
+      newUser = { uid: 3, name: "Rohan Joshi", email: "rohan@everwed.in", role: "planner" };
     } else {
-      newUser = { uid: 1, name: "Priya Arora (Founder)", email: "priya@royalknot.in", role: "admin" };
+      newUser = { uid: 1, name: "Priya Arora (Founder)", email: "priya@everwed.in", role: "admin" };
     }
     setUser(newUser);
+    setToken(newToken);
+    localStorage.setItem("auth_token", newToken);
     localStorage.setItem("auth_user", JSON.stringify(newUser));
   };
+
+  const isAdmin = user?.role === "admin";
+  const isPlanner = user?.role === "planner" || user?.role === "admin";
+  const isCouple = user?.role === "couple";
 
   return (
     <AuthContext.Provider
@@ -78,6 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user,
         isLoading,
+        isAdmin,
+        isPlanner,
+        isCouple,
         login,
         logout,
         switchRole,
@@ -95,4 +107,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Heart,
@@ -11,6 +11,8 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
+import { services } from "@/services";
+import type { Wedding } from "@/types";
 
 const coupleTabs = [
   { label: "Dashboard", icon: Sparkles, path: "/couple/dashboard" },
@@ -25,6 +27,36 @@ const coupleTabs = [
 
 export const CoupleLayout: React.FC = () => {
   const location = useLocation();
+  const [wedding, setWedding] = useState<Wedding | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadWedding = async () => {
+      try {
+        const list = await services.weddings.list();
+        if (mounted && list && list.length > 0) {
+          // If a custom created wedding is stored in session, prefer it
+          const savedId = localStorage.getItem("active_wedding_id");
+          const found = savedId ? list.find((w) => w.id === savedId) : null;
+          setWedding(found || list[0]);
+        }
+      } catch (err) {
+        console.error("Failed to load active wedding in CoupleLayout:", err);
+      }
+    };
+    loadWedding();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const coupleTitle = wedding
+    ? `${wedding.bride_name} & ${wedding.groom_name}`
+    : "Aisha & Vikram";
+  const weddingTitle = wedding?.title || "The Royal Union";
+  const locationText = wedding?.destination || "City Palace & Rambagh, Jaipur";
+  const datesText = wedding ? `${wedding.start_date} to ${wedding.end_date}` : "10-13 December 2026";
+  const guestText = wedding?.guest_estimate ? `${wedding.guest_estimate} Guests` : "450 Guests";
 
   return (
     <div className="min-h-screen bg-ivory-50 flex flex-col font-sans">
@@ -39,9 +71,11 @@ export const CoupleLayout: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5" />
               Couple Sanctuary
             </div>
-            <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">The Royal Union: Aisha & Vikram</h1>
+            <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
+              {weddingTitle}: {coupleTitle}
+            </h1>
             <p className="text-xs md:text-sm text-ivory-300 mt-1">
-              City Palace & Rambagh, Jaipur • 10-13 December 2026 • 450 Guests
+              {locationText} • {datesText} • {guestText}
             </p>
           </div>
 
@@ -90,4 +124,3 @@ export const CoupleLayout: React.FC = () => {
     </div>
   );
 };
-

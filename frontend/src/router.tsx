@@ -1,5 +1,7 @@
 import React from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { EverWedLogo } from "@/components/ui/EverWedLogo";
 
 // Layouts
 import { PlannerLayout } from "@/components/layout/PlannerLayout";
@@ -32,16 +34,59 @@ import { CoupleBudgetPage } from "@/pages/couple/CoupleBudgetPage";
 import { CoupleVendorsPage } from "@/pages/couple/CoupleVendorsPage";
 import { CoupleMoodboardPage } from "@/pages/couple/CoupleMoodboardPage";
 
+/**
+ * Route protection wrapper verifying authentication and role authorization.
+ */
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles?: string[];
+  redirectPath?: string;
+}> = ({ children, allowedRoles, redirectPath = "/login" }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-ivory-50 flex items-center justify-center p-4 font-sans">
+        <div className="text-center space-y-3">
+          <EverWedLogo variant="mark" size="lg" />
+          <p className="text-xs text-muted-foreground animate-pulse font-semibold">
+            Verifying EverWed session authorization...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to={redirectPath} state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // If a couple tries to access planner routes, gracefully redirect to their dashboard
+    if (user.role === "couple") {
+      return <Navigate to="/couple/dashboard" replace />;
+    }
+    return <Navigate to="/planner" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const router = createBrowserRouter([
-  // Public
+  // Public Routes
   { path: "/", element: <LandingPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/builder", element: <WeddingBuilderPage /> },
 
-  // Planner Workspace
+  // Planner Workspace (Admin & Planner only)
   {
     path: "/planner",
-    element: <PlannerLayout />,
+    element: (
+      <ProtectedRoute allowedRoles={["admin", "planner"]}>
+        <PlannerLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <OverviewPage /> },
       { path: "enquiries", element: <EnquiriesPage /> },
@@ -56,10 +101,14 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Couple Sanctuary
+  // Couple Sanctuary (Accessible to Couple, and Admin/Planner for inspection)
   {
     path: "/couple",
-    element: <CoupleLayout />,
+    element: (
+      <ProtectedRoute allowedRoles={["couple", "admin", "planner"]}>
+        <CoupleLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="/couple/dashboard" replace /> },
       { path: "dashboard", element: <CoupleDashboardPage /> },
@@ -76,4 +125,3 @@ export const router = createBrowserRouter([
   // Fallback
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
-

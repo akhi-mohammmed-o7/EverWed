@@ -1,5 +1,5 @@
 """
-Royal Knot OS — Application configuration.
+EverWed OS — Application configuration.
 
 Uses pydantic-settings to load from environment variables / .env file.
 All secrets (passwords, keys) are read from env vars — never hardcoded.
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     odoo_password: str = "admin"
 
     # ── Application ──────────────────────────────────────────────────
-    app_name: str = "Royal Knot OS"
+    app_name: str = "EverWed OS"
     app_version: str = "0.1.0"
     secret_key: str = "change-this-to-a-random-secret-key"
     debug: bool = True

@@ -147,12 +147,21 @@ export const PACKAGE_TIERS = [
   },
 ];
 
-export const SERVICE_CATEGORIES = [
+export interface ServiceCategoryDef {
+  id: string;
+  name: string;
+  icon: string;
+  pricing_basis: "Fixed" | "Per Plate" | "Per Session" | "Per Day" | "Per Unit" | "Per Person";
+  description: string;
+  default_price: number;
+}
+
+export const SERVICE_CATEGORIES: ServiceCategoryDef[] = [
   {
     id: "venue",
     name: "Palace Venues & Luxury Stays",
     icon: "🏰",
-    pricing_basis: "Fixed / Nightly",
+    pricing_basis: "Fixed",
     description: "Exclusive rental of heritage courtyards, ballrooms, and 400+ guest royal room blocks.",
     default_price: 2500000,
   },
@@ -230,8 +239,149 @@ export const SERVICE_CATEGORIES = [
   },
 ];
 
-export const DESTINATIONS = ["Jaipur", "Udaipur", "Jodhpur", "Delhi NCR", "Goa", "Mussoorie", "Abroad"];
+export interface DestinationItem {
+  id: string;
+  city: string;
+  state?: string;
+  country: string;
+  region: "Domestic" | "International";
+  popularVenues: string[];
+}
+
+export const DESTINATION_CATALOG: DestinationItem[] = [
+  {
+    id: "jaipur",
+    city: "Jaipur",
+    state: "Rajasthan",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["City Palace", "Rambagh Palace", "Samode Palace", "Fairmont Jaipur", "Jai Mahal Palace"],
+  },
+  {
+    id: "udaipur",
+    city: "Udaipur",
+    state: "Rajasthan",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Taj Lake Palace", "The Oberoi Udaivilas", "Jagmandir Island Palace", "The Leela Palace Udaipur", "Chunda Palace"],
+  },
+  {
+    id: "jodhpur",
+    city: "Jodhpur",
+    state: "Rajasthan",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Umaid Bhawan Palace", "Mehrangarh Fort", "Ajit Bhawan", "Indana Palace"],
+  },
+  {
+    id: "jaisalmer",
+    city: "Jaisalmer",
+    state: "Rajasthan",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Suryagarh Jaisalmer", "Jaisalmer Marriott Resort", "Fort Rajwada"],
+  },
+  {
+    id: "goa",
+    city: "Goa",
+    state: "Goa",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Taj Exotica Resort & Spa", "Alila Diwa Goa", "W Goa", "The Leela Goa", "Grand Hyatt Goa"],
+  },
+  {
+    id: "delhi-ncr",
+    city: "Delhi NCR",
+    state: "Delhi / Haryana",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["The Leela Palace New Delhi", "ITC Grand Bharat Gurugram", "The Taj Mahal Hotel", "Tivoli Grand"],
+  },
+  {
+    id: "mumbai",
+    city: "Mumbai",
+    state: "Maharashtra",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Taj Mahal Palace & Tower", "The St. Regis Mumbai", "JW Marriott Juhu", "Sofitel Mumbai BKC"],
+  },
+  {
+    id: "mussoorie",
+    city: "Mussoorie",
+    state: "Uttarakhand",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["JW Marriott Walnut Grove Resort", "Jaypee Residency Manor", "The Claridges Nabha Estate"],
+  },
+  {
+    id: "rishikesh",
+    city: "Rishikesh",
+    state: "Uttarakhand",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Taj Rishikesh Resort & Spa", "Ananda in the Himalayas", "The Roseate Ganges"],
+  },
+  {
+    id: "agra",
+    city: "Agra",
+    state: "Uttar Pradesh",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["The Oberoi Amarvilas", "ITC Mughal", "Taj Hotel & Convention Centre"],
+  },
+  {
+    id: "hyderabad",
+    city: "Hyderabad",
+    state: "Telangana",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["Taj Falaknuma Palace", "ITC Kohenur", "Park Hyatt Hyderabad", "Fort Grand Shamshabad"],
+  },
+  {
+    id: "bengaluru",
+    city: "Bengaluru",
+    state: "Karnataka",
+    country: "India",
+    region: "Domestic",
+    popularVenues: ["The Leela Palace Bengaluru", "Taj West End", "Bangalore Palace", "ITC Gardenia"],
+  },
+  {
+    id: "dubai",
+    city: "Dubai",
+    country: "United Arab Emirates",
+    region: "International",
+    popularVenues: ["Burj Al Arab Jumeirah", "Atlantis The Royal", "One&Only Royal Mirage", "Armani Hotel Dubai"],
+  },
+  {
+    id: "lake-como",
+    city: "Lake Como",
+    country: "Italy",
+    region: "International",
+    popularVenues: ["Villa d'Este", "Villa del Balbianello", "Grand Hotel Tremezzo", "Villa Erba"],
+  },
+  {
+    id: "bali",
+    city: "Bali",
+    country: "Indonesia",
+    region: "International",
+    popularVenues: ["Bulgari Resort Bali", "AYANA Resort Bali", "The Edge Bali", "Alila Villas Uluwatu"],
+  },
+  {
+    id: "phuket",
+    city: "Phuket",
+    country: "Thailand",
+    region: "International",
+    popularVenues: ["Amanpuri", "Trisara Phuket", "Sri Panwa Phuket", "InterContinental Phuket Resort"],
+  },
+];
+
+// Simple list for backward compatibility with existing dropdowns
+export const DESTINATIONS = DESTINATION_CATALOG.map(
+  (d) => `${d.city}${d.state ? `, ${d.state}` : ""}${d.country !== "India" ? ` (${d.country})` : ""}`
+);
+
 export const ENQUIRY_SOURCES = ["Instagram", "WhatsApp", "Referral", "Google", "Direct Call", "Website"];
+
 export const PAYMENT_STAGES = [
   { value: "booking_deposit", label: "Booking Deposit (25%)" },
   { value: "advance_payment", label: "Pre-Wedding Advance (50%)" },

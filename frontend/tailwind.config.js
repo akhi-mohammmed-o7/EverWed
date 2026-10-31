@@ -64,6 +64,20 @@ export default {
           900: "#562624",
           950: "#3A1917",
         },
+        burgundy: {
+          DEFAULT: "#6A1A24",
+          50: "#FAF0F2",
+          100: "#F5DCE1",
+          200: "#EABAC4",
+          300: "#DB8C9B",
+          400: "#C7586D",
+          500: "#A92A44",
+          600: "#800020",
+          700: "#6A1A24",
+          800: "#53141D",
+          900: "#3D0E15",
+          950: "#24060B",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -139,4 +153,3 @@ export default {
   },
   plugins: [],
 };
-

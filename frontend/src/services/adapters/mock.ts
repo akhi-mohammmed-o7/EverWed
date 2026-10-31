@@ -18,7 +18,7 @@ import type {
 } from "@/types";
 
 let mockToken: string | null = null;
-const mockUser: User = { uid: 1, name: "Priya Arora", email: "priya@royalknot.in", role: "admin" };
+const mockUser: User = { uid: 1, name: "Priya Arora", email: "priya@everwed.in", role: "admin" };
 
 const NOW = new Date().toISOString();
 const WEDDING_ID = "wed-royal-jaipur-001";
