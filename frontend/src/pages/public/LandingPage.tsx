@@ -17,7 +17,7 @@ import {
 import { Navbar } from "@/components/layout/Navbar";
 import { PACKAGE_TIERS, WEDDING_TRADITIONS } from "@/lib/constants";
 import { formatINR } from "@/lib/utils";
-import { EmeraldSilkShader } from "@/components/shaders/EmeraldSilkShader";
+import { BurgundySilkShader } from "@/components/shaders/BurgundySilkShader";
 import { GoldParticles } from "@/components/animations/GoldParticles";
 import { MagneticButton } from "@/components/animations/MagneticButton";
 import { RevealOnScroll, StaggerContainer, StaggerItem } from "@/components/animations/RevealOnScroll";
@@ -28,33 +28,88 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-ivory-50 text-forest-900 font-sans flex flex-col selection:bg-gold/30 selection:text-forest-950">
       <Navbar />
 
-      {/* ── 1. Hero Section with Emerald Silk WebGL Shader & Floating Gold Particles ── */}
-      <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-forest-950 text-ivory pt-16 pb-24 md:pt-20 md:pb-32">
-        {/* WebGL Fluid Silk Shader */}
-        <EmeraldSilkShader className="opacity-95" mouseInfluence={true} />
+      {/*
+       * ── Hero Section ─────────────────────────────────────────────────────
+       *
+       * Strict z-index layering:
+       *   z-0  : BurgundySilkShader  (WebGL canvas, pointer-events:none)
+       *   z-5  : GoldParticles       (canvas, pointer-events:none)
+       *   z-8  : gradient scrims     (divs,   pointer-events:none)
+       *   z-10 : hero foreground     (all interactive content)
+       *
+       * The shader layer NEVER overlaps or intercepts pointer events.
+       */}
+      <section
+        className="relative min-h-[92vh] flex items-center justify-center overflow-hidden text-ivory pt-16 pb-24 md:pt-20 md:pb-32"
+        style={{ backgroundColor: "#0A0205" }}
+      >
+        {/* ── Layer 0: Burgundy Rose-Gold WebGL Silk Shader ── */}
+        <BurgundySilkShader mouseInfluence={true} />
 
-        {/* Floating Champagne Gold Particles */}
-        <GoldParticles count={32} />
+        {/* ── Layer 5: Rose-Gold Floating Particles ── */}
+        <GoldParticles count={30} palette="rose-gold" />
 
-        {/* Subtle Decorative Vignette Borders */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-forest-950/80 to-transparent pointer-events-none z-10" />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-forest-950 to-transparent pointer-events-none z-10" />
+        {/* ── Layer 8: Gradient scrims for text readability ── */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-28 pointer-events-none"
+          style={{
+            background: "linear-gradient(to bottom, rgba(10,2,5,0.78) 0%, transparent 100%)",
+            zIndex: 8,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-36 pointer-events-none"
+          style={{
+            background: "linear-gradient(to top, rgba(10,2,5,0.90) 0%, transparent 100%)",
+            zIndex: 8,
+          }}
+        />
 
-        {/* Hero Content Container */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 text-center">
+        {/*
+         * ── Layer 10: ALL foreground content — buttons, headings, nav ──
+         * This container has its own stacking context (position:relative + z-index).
+         * Nothing from the shader layers reaches above z-8.
+         * Pointer events work normally for every element inside.
+         */}
+        <div
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          style={{ position: "relative", zIndex: 10 }}
+        >
           {/* Badge */}
           <RevealOnScroll variant="fadeIn" delay={0.1}>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-xs font-semibold mb-6 uppercase tracking-widest backdrop-blur-md shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-gold-300 animate-pulse" />
-              <span>Unified Wedding Operations & Client OS</span>
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 uppercase tracking-widest shadow-sm"
+              style={{
+                background: "rgba(201,161,74,0.12)",
+                border: "1px solid rgba(201,161,74,0.45)",
+                color: "#C9A14A",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5 animate-pulse" style={{ color: "#D4B870" }} />
+              <span>Unified Wedding Operations &amp; Client OS</span>
             </div>
           </RevealOnScroll>
 
           {/* Headline */}
           <RevealOnScroll variant="fadeUp" delay={0.25} duration={0.9}>
-            <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mx-auto leading-[1.12] text-ivory drop-shadow-md">
-              Curate Grand Weddings. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold-300 via-gold to-gold-400 italic font-normal">
+            <h1
+              className="font-serif text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mx-auto leading-[1.12]"
+              style={{ color: "#F5EEE6", textShadow: "0 2px 24px rgba(0,0,0,0.7)" }}
+            >
+              Curate Grand Weddings.{" "}
+              <br />
+              <span
+                className="italic font-normal"
+                style={{
+                  background: "linear-gradient(90deg, #D4B870 0%, #C9A14A 45%, #E8D09A 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
                 Command Every Minute.
               </span>
             </h1>
@@ -62,76 +117,109 @@ export const LandingPage: React.FC = () => {
 
           {/* Tagline */}
           <RevealOnScroll variant="fadeUp" delay={0.4} duration={0.85}>
-            <p className="mt-6 text-base sm:text-lg text-ivory-200/90 max-w-2xl mx-auto leading-relaxed font-light">
-              The luxury platform engineered for contemporary couples and high-end wedding planning agencies in Jaipur, Udaipur, and beyond.
+            <p
+              className="mt-6 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed font-light"
+              style={{ color: "rgba(245,238,230,0.82)" }}
+            >
+              The luxury platform engineered for contemporary couples and
+              high-end wedding planning agencies in Jaipur, Udaipur, and beyond.
             </p>
           </RevealOnScroll>
 
-          {/* Magnetic CTA Buttons */}
+          {/*
+           * ── CTA Buttons ────────────────────────────────────────────────
+           * Both wrapped in <Link> so they are fully navigable.
+           * MagneticButton handles its own spring transform in isolation.
+           * No shader transform, filter, or displacement touches these elements.
+           */}
           <RevealOnScroll variant="fadeUp" delay={0.55}>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-              <Link to="/builder">
+
+              {/* Primary: champagne-gold bg + deep burgundy text */}
+              <Link to="/builder" style={{ position: "relative", zIndex: 10 }}>
                 <MagneticButton
                   variant="gold"
                   size="lg"
                   shine={true}
-                  className="w-full sm:w-auto font-bold shadow-xl shadow-gold/20"
+                  className="w-full sm:w-auto font-bold"
+                  style={{
+                    backgroundColor: "#C9A14A",
+                    color: "#2D0A14",
+                    border: "1px solid rgba(212,184,112,0.6)",
+                    boxShadow: "0 8px 32px rgba(201,161,74,0.28)",
+                  }}
                 >
                   <span>Launch Wedding Setup Wizard</span>
-                  <ArrowRight className="w-4 h-4 ml-1" />
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
                 </MagneticButton>
               </Link>
-              <Link to="/planner">
+
+              {/* Secondary: dark-burgundy tint + champagne border + ivory text */}
+              <Link to="/planner" style={{ position: "relative", zIndex: 10 }}>
                 <MagneticButton
                   variant="secondary"
                   size="lg"
                   shine={false}
-                  className="w-full sm:w-auto text-ivory border-ivory/30 bg-forest-900/60 backdrop-blur-sm hover:bg-forest-800/80 hover:border-gold/50"
+                  className="w-full sm:w-auto font-semibold"
+                  style={{
+                    backgroundColor: "rgba(45,10,20,0.45)",
+                    color: "#F5EEE6",
+                    border: "1px solid rgba(201,161,74,0.42)",
+                    backdropFilter: "blur(6px)",
+                  }}
                 >
-                  <Shield className="w-4 h-4 mr-1 text-gold" />
+                  <Shield className="w-4 h-4 mr-1.5" style={{ color: "#C9A14A" }} />
                   <span>Open Planner Workspace</span>
                 </MagneticButton>
               </Link>
             </div>
           </RevealOnScroll>
 
-          {/* Key Metrics Strip with Animated Counter Rollups */}
-          <RevealOnScroll variant="fadeUp" delay={0.7}>
-            <div className="mt-16 pt-10 border-t border-ivory/15 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left backdrop-blur-sm bg-forest-950/30 p-6 rounded-2xl border border-gold/15">
+          {/* Key Metrics Strip */}
+          <RevealOnScroll variant="fadeUp" delay={0.72}>
+            <div
+              className="mt-16 pt-10 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left p-6 rounded-2xl"
+              style={{
+                borderTop: "1px solid rgba(201,161,74,0.20)",
+                background: "rgba(10,2,5,0.42)",
+                border: "1px solid rgba(201,161,74,0.18)",
+                backdropFilter: "blur(12px)",
+              }}
+            >
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Operational Precision</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
+                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Operational Precision</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
                   <AnimatedCounter value={25} suffix="+" duration={1.8} />
-                  <span className="text-lg ml-1 font-sans font-normal text-ivory-200">Playbooks</span>
+                  <span className="text-lg ml-1 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>Playbooks</span>
                 </h4>
-                <p className="text-xs text-ivory-300 mt-0.5">Pre-engineered tasks</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Pre-engineered tasks</p>
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Quote Engine</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
+                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Quote Engine</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
                   <AnimatedCounter value={100} suffix="%" duration={1.6} />
-                  <span className="text-lg ml-1 font-sans font-normal text-ivory-200">Normalized</span>
+                  <span className="text-lg ml-1 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>Normalized</span>
                 </h4>
-                <p className="text-xs text-ivory-300 mt-0.5">Fair per-plate comparison</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Fair per-plate comparison</p>
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Financial Integrity</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
-                  <span className="text-gold">Zero</span>
-                  <span className="text-lg ml-1.5 font-sans font-normal text-ivory-200">Variance</span>
+                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Financial Integrity</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
+                  <span>Zero</span>
+                  <span className="text-lg ml-1.5 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>Variance</span>
                 </h4>
-                <p className="text-xs text-ivory-300 mt-0.5">Mandatory bill audits</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Mandatory bill audits</p>
               </div>
 
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-ivory-300">Platform Sync</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold text-gold mt-1 flex items-baseline">
-                  <span className="text-gold">Odoo</span>
-                  <span className="text-lg ml-1 font-sans font-normal text-ivory-200">XML-RPC</span>
+                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Platform Sync</p>
+                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
+                  <span>Odoo</span>
+                  <span className="text-lg ml-1 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>XML-RPC</span>
                 </h4>
-                <p className="text-xs text-ivory-300 mt-0.5">Dual-mode resilience</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Dual-mode resilience</p>
               </div>
             </div>
           </RevealOnScroll>

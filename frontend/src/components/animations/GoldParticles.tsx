@@ -1,10 +1,5 @@
 import React, { useEffect, useRef } from "react";
 
-interface GoldParticlesProps {
-  className?: string;
-  count?: number;
-}
-
 interface Particle {
   x: number;
   y: number;
@@ -16,13 +11,38 @@ interface Particle {
   fadeSpeed: number;
   fadingIn: boolean;
   blur: number;
+  /** 0 = champagne, 1 = rose-gold, 2 = warm gold */
+  colorVariant: number;
 }
+
+interface GoldParticlesProps {
+  className?: string;
+  count?: number;
+  /** "champagne" | "rose-gold" — determines particle colour scheme */
+  palette?: "champagne" | "rose-gold";
+}
+
+const PALETTES = {
+  champagne: [
+    "217, 182, 111", // #D9B66F champagne gold
+    "230, 200, 140", // lighter champagne
+    "198, 162,  90", // warm gold
+  ],
+  "rose-gold": [
+    "200, 140, 120", // #C88C78 rose-gold
+    "220, 170, 140", // champagne-rose
+    "185, 115,  95", // deeper rose
+  ],
+};
 
 export const GoldParticles: React.FC<GoldParticlesProps> = ({
   className = "",
   count = 28,
+  palette = "rose-gold",
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const paletteRef = useRef(palette);
+  paletteRef.current = palette;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -31,51 +51,57 @@ export const GoldParticles: React.FC<GoldParticlesProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
-    let width = (canvas.width = canvas.clientWidth);
+    let width  = (canvas.width  = canvas.clientWidth);
     let height = (canvas.height = canvas.clientHeight);
 
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = canvas.clientWidth;
+      width  = canvas.width  = canvas.clientWidth;
       height = canvas.height = canvas.clientHeight;
     };
     window.addEventListener("resize", handleResize, { passive: true });
 
-    // Initialize sparse, delicate gold particles
+    // Initialise particles — slightly biased toward the outer edges
     const particles: Particle[] = [];
     for (let i = 0; i < count; i++) {
-      const baseOpacity = 0.15 + Math.random() * 0.45;
+      const baseOpacity   = 0.12 + Math.random() * 0.42;
+      // Bias x toward outer thirds
+      const xBias = Math.random() < 0.6
+        ? (Math.random() < 0.5 ? Math.random() * 0.28 : 0.72 + Math.random() * 0.28)
+        : Math.random();
+
       particles.push({
-        x: Math.random() * width,
+        x: xBias * width,
         y: Math.random() * height,
-        size: 1.0 + Math.random() * 2.4, // Small, jewel-like
-        speedY: 0.15 + Math.random() * 0.35, // Slow upward drift
-        speedX: (Math.random() - 0.5) * 0.2, // Subtle lateral sway
+        size: 0.8 + Math.random() * 2.0,
+        speedY: 0.12 + Math.random() * 0.28,
+        speedX: (Math.random() - 0.5) * 0.18,
         opacity: Math.random() * baseOpacity,
         baseOpacity,
-        fadeSpeed: 0.003 + Math.random() * 0.006,
+        fadeSpeed: 0.002 + Math.random() * 0.005,
         fadingIn: Math.random() > 0.5,
-        blur: Math.random() > 0.6 ? 1.5 : 0,
+        blur: Math.random() > 0.65 ? 1.2 : 0,
+        colorVariant: Math.floor(Math.random() * 3),
       });
     }
 
-    let isVisible = true;
+    let isVisible   = true;
     let isTabActive = true;
     let animId: number;
 
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        isVisible = e.isIntersecting;
-      });
+      entries.forEach((e) => { isVisible = e.isIntersecting; });
     });
     observer.observe(canvas);
 
-    const handleVisibility = () => {
-      isTabActive = !document.hidden;
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
+    const onVisibility = () => { isTabActive = !document.hidden; };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const colors = PALETTES[paletteRef.current];
 
     const render = () => {
       if (isVisible && isTabActive) {
@@ -84,41 +110,35 @@ export const GoldParticles: React.FC<GoldParticlesProps> = ({
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
 
-          // Upward drift
+          // Drift
           p.y -= p.speedY;
           p.x += p.speedX;
 
-          // Gentle opacity breathing / twinkle
+          // Gentle twinkle
           if (p.fadingIn) {
             p.opacity += p.fadeSpeed;
-            if (p.opacity >= p.baseOpacity) {
-              p.fadingIn = false;
-            }
+            if (p.opacity >= p.baseOpacity) p.fadingIn = false;
           } else {
             p.opacity -= p.fadeSpeed;
-            if (p.opacity <= 0.05) {
-              p.fadingIn = true;
-            }
+            if (p.opacity <= 0.04) p.fadingIn = true;
           }
 
-          // Wrap around top or sides
-          if (p.y < -10) {
-            p.y = height + 10;
-            p.x = Math.random() * width;
-          }
-          if (p.x < -10) p.x = width + 10;
-          if (p.x > width + 10) p.x = -10;
+          // Wrap
+          if (p.y < -8)  { p.y = height + 8; p.x = Math.random() * width; }
+          if (p.x < -8)  p.x = width + 8;
+          if (p.x > width + 8) p.x = -8;
 
-          // Draw champagne gold speck
+          // Draw
           ctx.save();
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
 
-          // Champagne gold: #D9B66F
-          ctx.fillStyle = `rgba(217, 182, 111, ${p.opacity.toFixed(3)})`;
+          const rgb = colors[p.colorVariant] ?? colors[0];
+          ctx.fillStyle = `rgba(${rgb}, ${p.opacity.toFixed(3)})`;
+
           if (p.blur > 0) {
-            ctx.shadowColor = "rgba(242, 227, 181, 0.6)";
-            ctx.shadowBlur = p.blur * 3;
+            ctx.shadowColor = `rgba(${rgb}, 0.55)`;
+            ctx.shadowBlur  = p.blur * 4;
           }
           ctx.fill();
           ctx.restore();
@@ -135,16 +155,17 @@ export const GoldParticles: React.FC<GoldParticlesProps> = ({
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", handleResize);
-      document.removeEventListener("visibilitychange", handleVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
       observer.disconnect();
     };
-  }, [count]);
+  }, [count, palette]);
 
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute inset-0 w-full h-full pointer-events-none select-none z-10 ${className}`}
+      aria-hidden="true"
+      className={`absolute inset-0 w-full h-full pointer-events-none select-none ${className}`}
+      style={{ zIndex: 5, pointerEvents: "none" }}
     />
   );
 };
-

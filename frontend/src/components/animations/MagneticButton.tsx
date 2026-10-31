@@ -17,12 +17,13 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
       variant = "gold",
       size = "md",
       shine = true,
-      magneticStrength = 0.25,
+      magneticStrength = 0.22,
       children,
       onMouseEnter,
       onMouseLeave,
       onMouseMove,
       disabled,
+      style: customStyle,
       ...props
     },
     forwardedRef
@@ -32,12 +33,12 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
     const [isHovered, setIsHovered] = useState(false);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
 
-    // Raw motion values
+    // Raw motion values for magnetic pull
     const rawX = useMotionValue(0);
     const rawY = useMotionValue(0);
 
     // Spring physics configuration for refined, silky magnetic snapping
-    const springConfig = { damping: 18, stiffness: 180, mass: 0.5 };
+    const springConfig = { damping: 20, stiffness: 200, mass: 0.5 };
     const springX = useSpring(rawX, springConfig);
     const springY = useSpring(rawY, springConfig);
 
@@ -71,8 +72,8 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
       const deltaX = (e.clientX - centerX) * magneticStrength;
       const deltaY = (e.clientY - centerY) * magneticStrength;
 
-      // Clamp within luxury limits (max ~12px)
-      const maxDistance = 14;
+      // Clamp within restrained luxury limits (max ~10px)
+      const maxDistance = 10;
       const clampedX = Math.max(-maxDistance, Math.min(maxDistance, deltaX));
       const clampedY = Math.max(-maxDistance, Math.min(maxDistance, deltaY));
 
@@ -95,11 +96,11 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
       onMouseLeave?.(e);
     };
 
-    // Styling variants
+    // Styling variants matching Burgundy & Champagne luxury aesthetic
     const variantStyles = {
-      gold: "bg-gold text-forest-950 font-bold border border-gold-400 hover:bg-gold-400 hover:shadow-lg hover:shadow-gold/25 active:bg-gold-600",
-      secondary: "bg-forest-800 text-ivory border border-forest-700 hover:bg-forest-700 hover:border-gold/40 hover:shadow-md active:bg-forest-900",
-      outline: "border border-gold/40 text-forest-900 bg-transparent hover:bg-gold/10 hover:border-gold active:bg-gold/20",
+      gold: "bg-[#C9A14A] text-[#2D0A14] font-bold border border-[#D4B870]/70 hover:bg-[#DECA8E] hover:shadow-lg hover:shadow-[#C9A14A]/25 active:bg-[#B88E35]",
+      secondary: "bg-[#2D0A14]/50 text-[#F5EEE6] font-semibold border border-[#D4B870]/40 backdrop-blur-sm hover:bg-[#3D101C]/75 hover:border-[#D4B870]/70 hover:shadow-md active:bg-[#20060D]",
+      outline: "border border-[#C9A14A]/40 text-forest-900 bg-transparent hover:bg-[#C9A14A]/10 hover:border-[#C9A14A] active:bg-[#C9A14A]/20",
       ghost: "text-forest-900 bg-transparent hover:bg-ivory-200/80 active:bg-ivory-300",
     };
 
@@ -112,24 +113,25 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
     return (
       <motion.button
         ref={buttonRef}
+        {...(props as any)}
         style={{
+          ...(customStyle as object),
           x: isTouchDevice ? 0 : springX,
           y: isTouchDevice ? 0 : springY,
         }}
-        whileHover={{ scale: isTouchDevice ? 1 : 1.02 }}
+        whileHover={{ scale: isTouchDevice ? 1 : 1.02, y: isTouchDevice ? 0 : -1 }}
         whileTap={{ scale: 0.98 }}
         onMouseMove={handleMouseMove}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         disabled={disabled}
         className={cn(
-          "relative inline-flex items-center justify-center font-sans tracking-tight transition-colors overflow-hidden select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 focus-visible:ring-offset-2",
+          "relative inline-flex items-center justify-center font-sans tracking-tight transition-colors overflow-hidden select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A14A]/60 focus-visible:ring-offset-2",
           variantStyles[variant],
           sizeStyles[size],
           disabled && "opacity-50 cursor-not-allowed pointer-events-none",
           className
         )}
-        {...(props as any)}
       >
         {/* Champagne-Gold Shine Sweep on Hover */}
         {shine && !disabled && (
@@ -150,7 +152,7 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
           />
         )}
 
-        {/* Content wrapper with slight micro-motion for icons */}
+        {/* Content wrapper with micro-motion for icons */}
         <span className="relative z-10 inline-flex items-center gap-2 [&>svg]:transition-transform [&>svg]:duration-200 group-hover:[&>svg]:translate-x-0.5">
           {children}
         </span>
@@ -160,4 +162,3 @@ export const MagneticButton = React.forwardRef<HTMLButtonElement, MagneticButton
 );
 
 MagneticButton.displayName = "MagneticButton";
-
