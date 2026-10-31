@@ -124,3 +124,8 @@ export function formatStatusLabel(status: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+export function getActiveWeddingId(): string {
+  return localStorage.getItem("active_wedding_id") || "wed-royal-jaipur-001";
+}
+

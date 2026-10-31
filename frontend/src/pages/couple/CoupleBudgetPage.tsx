@@ -11,7 +11,7 @@ import { Card, CardHeader, CardContent, StatCard } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { Wedding, ClientPayment } from "@/types";
-import { formatINR, formatDate } from "@/lib/utils";
+import { formatINR, formatDate, getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleBudgetPage: React.FC = () => {
   const [wedding, setWedding] = useState<Wedding | null>(null);
@@ -19,12 +19,32 @@ export const CoupleBudgetPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    services.weddings.get("wed-royal-jaipur-001").then(async (w) => {
-      setWedding(w);
-      const list = await services.finance.listClientPayments(w.id);
-      setPayments(list);
-      setIsLoading(false);
-    });
+    let mounted = true;
+    const loadBudget = async () => {
+      try {
+        const activeId = getActiveWeddingId();
+        let w: Wedding;
+        try {
+          w = await services.weddings.get(activeId);
+        } catch {
+          const all = await services.weddings.list();
+          w = all[0];
+        }
+        if (!mounted || !w) return;
+        setWedding(w);
+        const list = await services.finance.listClientPayments(w.id).catch(() => []);
+        if (!mounted) return;
+        setPayments(list);
+      } catch (err) {
+        console.error("Failed to load couple budget:", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+    loadBudget();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (isLoading || !wedding) {

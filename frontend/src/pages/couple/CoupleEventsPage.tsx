@@ -10,17 +10,24 @@ import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { WeddingEvent } from "@/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleEventsPage: React.FC = () => {
   const [events, setEvents] = useState<WeddingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    services.events.listForWedding("wed-royal-jaipur-001").then((list) => {
-      setEvents(list);
-      setIsLoading(false);
-    });
+    const activeId = getActiveWeddingId();
+    services.events.listForWedding(activeId)
+      .then((list) => {
+        setEvents(list);
+        setIsLoading(false);
+      })
+      .catch(async () => {
+        const list = await services.events.listForWedding("wed-royal-jaipur-001");
+        setEvents(list);
+        setIsLoading(false);
+      });
   }, []);
 
   return (

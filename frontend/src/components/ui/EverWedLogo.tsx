@@ -151,3 +151,4 @@ export const EverWedLogo: React.FC<EverWedLogoProps> = ({
     </div>
   );
 };
+

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { services } from "@/services";
 import type { Wedding, WeddingEvent, Task } from "@/types";
-import { formatINR, formatDate, daysUntil } from "@/lib/utils";
+import { formatINR, formatDate, daysUntil, getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleDashboardPage: React.FC = () => {
   const [wedding, setWedding] = useState<Wedding | null>(null);
@@ -27,16 +27,36 @@ export const CoupleDashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    services.weddings.get("wed-royal-jaipur-001").then(async (w) => {
-      setWedding(w);
-      const [evts, tsks] = await Promise.all([
-        services.events.listForWedding(w.id),
-        services.tasks.list(w.id),
-      ]);
-      setEvents(evts);
-      setTasks(tsks);
-      setIsLoading(false);
-    });
+    let mounted = true;
+    const loadDashboard = async () => {
+      try {
+        const activeId = getActiveWeddingId();
+        let w: Wedding;
+        try {
+          w = await services.weddings.get(activeId);
+        } catch {
+          const all = await services.weddings.list();
+          w = all[0];
+        }
+        if (!mounted || !w) return;
+        setWedding(w);
+        const [evts, tsks] = await Promise.all([
+          services.events.listForWedding(w.id).catch(() => []),
+          services.tasks.list(w.id).catch(() => []),
+        ]);
+        if (!mounted) return;
+        setEvents(evts);
+        setTasks(tsks);
+      } catch (err) {
+        console.error("Failed to load couple dashboard:", err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+    loadDashboard();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (isLoading || !wedding) {

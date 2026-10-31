@@ -11,17 +11,24 @@ import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { Quote } from "@/types";
-import { formatINR } from "@/lib/utils";
+import { formatINR, getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleVendorsPage: React.FC = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    services.quotes.list("wed-royal-jaipur-001").then((list) => {
-      setQuotes(list.filter((q) => q.status === "selected"));
-      setIsLoading(false);
-    });
+    const activeId = getActiveWeddingId();
+    services.quotes.list(activeId)
+      .then((list) => {
+        setQuotes(list.filter((q) => q.status === "selected"));
+        setIsLoading(false);
+      })
+      .catch(async () => {
+        const list = await services.quotes.list("wed-royal-jaipur-001");
+        setQuotes(list.filter((q) => q.status === "selected"));
+        setIsLoading(false);
+      });
   }, []);
 
   return (

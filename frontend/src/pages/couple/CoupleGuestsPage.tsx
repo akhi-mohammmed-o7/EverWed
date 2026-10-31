@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { services } from "@/services";
 import type { Guest } from "@/types";
+import { getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleGuestsPage: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -26,7 +27,7 @@ export const CoupleGuestsPage: React.FC = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newGuest, setNewGuest] = useState<Omit<Guest, "id">>({
-    wedding_id: "wed-royal-jaipur-001",
+    wedding_id: getActiveWeddingId(),
     name: "",
     email: "",
     phone: "",
@@ -42,7 +43,7 @@ export const CoupleGuestsPage: React.FC = () => {
   const loadGuests = () => {
     setIsLoading(true);
     services.guests
-      .list("wed-royal-jaipur-001")
+      .list(getActiveWeddingId())
       .then((data) => setGuests(data))
       .catch((err) => console.error(err))
       .finally(() => setIsLoading(false));
@@ -59,7 +60,7 @@ export const CoupleGuestsPage: React.FC = () => {
       await services.guests.create(newGuest);
       setIsAddModalOpen(false);
       setNewGuest({
-        wedding_id: "wed-royal-jaipur-001",
+        wedding_id: getActiveWeddingId(),
         name: "",
         email: "",
         phone: "",

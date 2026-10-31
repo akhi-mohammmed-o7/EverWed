@@ -9,18 +9,24 @@ import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
 import type { Task } from "@/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleChecklistPage: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadTasks = () => {
-    services.tasks.list("wed-royal-jaipur-001").then((list) => {
+  const loadTasks = async () => {
+    try {
+      const activeId = getActiveWeddingId();
+      const list = await services.tasks.list(activeId);
       setTasks(list);
+    } catch {
+      const list = await services.tasks.list("wed-royal-jaipur-001");
+      setTasks(list);
+    } finally {
       setIsLoading(false);
-    });
+    }
   };
 
   useEffect(() => {

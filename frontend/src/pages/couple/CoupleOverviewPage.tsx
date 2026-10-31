@@ -16,13 +16,19 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { services } from "@/services";
 import type { Wedding } from "@/types";
-import { formatINR, formatDate } from "@/lib/utils";
+import { formatINR, formatDate, getActiveWeddingId } from "@/lib/utils";
 
 export const CoupleOverviewPage: React.FC = () => {
   const [wedding, setWedding] = useState<Wedding | null>(null);
 
   useEffect(() => {
-    services.weddings.get("wed-royal-jaipur-001").then((w) => setWedding(w));
+    const activeId = getActiveWeddingId();
+    services.weddings.get(activeId)
+      .then(setWedding)
+      .catch(async () => {
+        const list = await services.weddings.list();
+        if (list.length > 0) setWedding(list[0]);
+      });
   }, []);
 
   if (!wedding) {

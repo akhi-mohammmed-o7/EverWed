@@ -7,23 +7,26 @@ import {
   Clock,
   Calendar,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { services } from "@/services";
-import type { Task, TaskCreate, Wedding } from "@/types";
+import type { Task, TaskCreate, Wedding, WeddingEvent } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { TASK_CATEGORIES } from "@/lib/constants";
 
 export const TasksPage: React.FC = () => {
   const [weddings, setWeddings] = useState<Wedding[]>([]);
   const [selectedWid, setSelectedWid] = useState<string>("wed-royal-jaipur-001");
+  const [events, setEvents] = useState<WeddingEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
+  const [selectedEventFilter, setSelectedEventFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -36,17 +39,28 @@ export const TasksPage: React.FC = () => {
     owner: "Pooja Verma",
     due_date: "2026-11-20",
     priority: "medium",
+    event_id: "",
     notes: "",
   });
 
   useEffect(() => {
     services.weddings.list().then((list) => {
       setWeddings(list);
-      if (list.length > 0 && !selectedWid) {
+      const savedId = localStorage.getItem("active_wedding_id");
+      if (savedId && list.some((w) => w.id === savedId)) {
+        setSelectedWid(savedId);
+      } else if (list.length > 0 && !selectedWid) {
         setSelectedWid(list[0].id);
       }
     });
   }, []);
+
+  const loadWeddingEvents = (wid: string) => {
+    services.events
+      .listForWedding(wid)
+      .then((evtList) => setEvents(evtList))
+      .catch((err) => console.error(err));
+  };
 
   const loadTasks = (wid: string) => {
     setIsLoading(true);
@@ -63,6 +77,7 @@ export const TasksPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedWid) {
+      loadWeddingEvents(selectedWid);
       loadTasks(selectedWid);
     }
   }, [selectedWid, statusFilter, priorityFilter, categoryFilter]);
@@ -89,6 +104,7 @@ export const TasksPage: React.FC = () => {
         owner: "Pooja Verma",
         due_date: "2026-11-20",
         priority: "medium",
+        event_id: "",
         notes: "",
       });
       loadTasks(selectedWid);
@@ -97,26 +113,36 @@ export const TasksPage: React.FC = () => {
     }
   };
 
+  // Filter tasks by ceremony if selected
+  const filteredTasks = tasks.filter((t) => {
+    if (selectedEventFilter === "all") return true;
+    if (selectedEventFilter === "general") return !t.event_id;
+    return t.event_id === selectedEventFilter;
+  });
+
   return (
     <div className="space-y-6 font-sans">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-gold-700 bg-gold/15 px-2.5 py-0.5 rounded-full border border-gold/30">
-            Operations & Protocol
+            Ceremony-Driven Tasks & Milestones
           </span>
           <h1 className="font-serif text-2xl sm:text-3xl font-bold text-forest-900 mt-1">
-            25+ Standard Wedding Checklist & Tasks
+            Ceremony Preparation & Planning Tasks
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Operational milestones: venue permits, mandap engineering, sound licenses, tastings, and arrival checklists.
+            Operational playbooks tailored directly to your selected ceremonies, permits, mandap styling, and arrival checkpoints.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             className="input-base py-1.5 text-xs w-auto font-medium"
             value={selectedWid}
-            onChange={(e) => setSelectedWid(e.target.value)}
+            onChange={(e) => {
+              setSelectedWid(e.target.value);
+              setSelectedEventFilter("all");
+            }}
           >
             {weddings.map((w) => (
               <option key={w.id} value={w.id}>
@@ -131,7 +157,60 @@ export const TasksPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Strip */}
+      {/* Ceremony-Driven Filter Tab Strip */}
+      {events.length > 0 && (
+        <div className="bg-white p-3 rounded-2xl border border-border shadow-2xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2 px-1">
+            Filter Tasks By Ceremony
+          </span>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+            <button
+              onClick={() => setSelectedEventFilter("all")}
+              className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors ${
+                selectedEventFilter === "all"
+                  ? "bg-forest-800 text-ivory shadow-xs"
+                  : "bg-ivory-100 text-forest-700 hover:bg-ivory-200"
+              }`}
+            >
+              All Celebrations ({tasks.length})
+            </button>
+            {events.map((ev) => {
+              const count = tasks.filter((t) => t.event_id === ev.id).length;
+              return (
+                <button
+                  key={ev.id}
+                  onClick={() => setSelectedEventFilter(ev.id)}
+                  className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                    selectedEventFilter === ev.id
+                      ? "bg-forest-800 text-ivory shadow-xs"
+                      : "bg-ivory-100 text-forest-700 hover:bg-ivory-200"
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3 text-gold-700" />
+                  <span>{ev.name}</span>
+                  {count > 0 && (
+                    <span className="text-[10px] bg-white/30 px-1.5 py-0.2 rounded-full font-bold">
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setSelectedEventFilter("general")}
+              className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-colors ${
+                selectedEventFilter === "general"
+                  ? "bg-forest-800 text-ivory shadow-xs"
+                  : "bg-ivory-100 text-forest-700 hover:bg-ivory-200"
+              }`}
+            >
+              General Milestones
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Status & Priority Filter Strip */}
       <div className="bg-white p-3.5 rounded-2xl border border-border flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground font-medium">Status:</span>
@@ -166,22 +245,24 @@ export const TasksPage: React.FC = () => {
 
       {/* Tasks Table/List */}
       <Card className="p-0 overflow-hidden shadow-sm">
-        <CardHeader className="bg-ivory-100/50">
+        <CardHeader className="bg-ivory-100/50 flex items-center justify-between">
           <div>
-            <h3 className="font-serif text-base font-bold text-forest-900">Task Checklist ({tasks.length})</h3>
+            <h3 className="font-serif text-base font-bold text-forest-900">
+              Task Checklist ({filteredTasks.length})
+            </h3>
             <p className="text-[11px] text-muted-foreground">Click checkbox to toggle task progress status.</p>
           </div>
-          <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-            {tasks.filter((t) => t.status === "done").length} Done
+          <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+            {filteredTasks.filter((t) => t.status === "done").length} Done
           </span>
         </CardHeader>
         <div className="divide-y divide-border/60">
           {isLoading ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">Loading tasks...</div>
-          ) : tasks.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">No tasks found matching filters.</div>
+            <div className="p-8 text-center text-xs text-muted-foreground animate-pulse">Loading tasks...</div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="p-8 text-center text-xs text-muted-foreground">No tasks found matching current filters.</div>
           ) : (
-            tasks.map((task) => (
+            filteredTasks.map((task) => (
               <div
                 key={task.id}
                 className={`p-4 flex items-center justify-between text-xs hover:bg-ivory-50/70 transition-colors ${
@@ -193,56 +274,62 @@ export const TasksPage: React.FC = () => {
                     type="checkbox"
                     checked={task.status === "done"}
                     onChange={() => handleToggleStatus(task.id, task.status)}
-                    className="w-4 h-4 rounded text-forest-800 focus:ring-gold/60 cursor-pointer mt-0.5"
+                    className="w-4 h-4 rounded text-forest-800 focus:ring-gold/60 cursor-pointer mt-0.5 accent-forest-800"
                   />
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`font-semibold text-sm ${task.status === "done" ? "line-through text-muted-foreground" : "text-forest-900"}`}>
                         {task.title}
                       </span>
-                      <Badge status={task.priority} />
-                      {task.is_overdue && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> Overdue
+                      {task.is_overdue && task.status !== "done" && (
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
+                          Overdue
                         </span>
                       )}
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground mt-1">
-                      <span>Category: <strong>{task.category}</strong></span>
-                      <span>Assignee: <strong>{task.owner}</strong></span>
-                      <span>Due Date: <strong>{formatDate(task.due_date)}</strong></span>
-                      {task.notes && <span className="text-forest-700 italic">"{task.notes}"</span>}
+                    {task.notes && (
+                      <p className="text-muted-foreground text-[11px] mt-0.5">{task.notes}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                      <span className="font-semibold text-forest-800">Owner: {task.owner}</span>
+                      <span>Category: {task.category}</span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-gold-700" />
+                        Due: {formatDate(task.due_date)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <Badge status={task.status} />
+                <div className="flex items-center gap-2.5">
+                  <Badge status={task.priority} />
+                  <Badge status={task.status} />
+                </div>
               </div>
             ))
           )}
         </div>
       </Card>
 
-      {/* Add Custom Task Modal */}
+      {/* ── CREATE TASK MODAL ── */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Add Custom Operational Task"
-        subtitle="Add a specific task or operational reminder to the wedding plan."
+        title="Create Wedding Planning Task"
       >
-        <form onSubmit={handleCreateTask} className="space-y-3.5 text-xs">
+        <form onSubmit={handleCreateTask} className="space-y-3.5 text-xs font-sans">
           <div>
             <label className="label-base">Task Title</label>
             <input
               type="text"
               required
+              placeholder="e.g. Conduct floral mandap structural safety review"
               className="input-base"
-              placeholder="e.g. Confirm 2nd tier backup sound generator"
               value={newTask.title}
               onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
             />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label-base">Category</label>
@@ -259,22 +346,25 @@ export const TasksPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="label-base">Priority</label>
+              <label className="label-base">Associated Ceremony</label>
               <select
                 className="input-base"
-                value={newTask.priority}
-                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+                value={newTask.event_id || ""}
+                onChange={(e) => setNewTask({ ...newTask, event_id: e.target.value || undefined })}
               >
-                <option value="urgent">Urgent</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="">General (All Events)</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label-base">Assignee / Owner</label>
+              <label className="label-base">Assigned Lead / Owner</label>
               <input
                 type="text"
                 required
@@ -284,31 +374,48 @@ export const TasksPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="label-base">Due Date</label>
-              <input
-                type="date"
-                required
+              <label className="label-base">Priority Level</label>
+              <select
                 className="input-base"
-                value={newTask.due_date}
-                onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-              />
+                value={newTask.priority}
+                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as any })}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
             </div>
           </div>
+
           <div>
-            <label className="label-base">Notes & Requirements</label>
+            <label className="label-base">Target Due Date</label>
+            <input
+              type="date"
+              required
+              className="input-base"
+              value={newTask.due_date}
+              onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="label-base">Notes & Key Deliverables</label>
             <textarea
               rows={2}
               className="input-base"
+              placeholder="e.g. Include fire safety certificate and signed engineer report."
               value={newTask.notes}
               onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-3">
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
+
+          <div className="pt-3 border-t border-border flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="gold">
-              Save Task
+            <Button type="submit" variant="gold" size="sm" className="font-bold">
+              Create Task
             </Button>
           </div>
         </form>
@@ -316,4 +423,3 @@ export const TasksPage: React.FC = () => {
     </div>
   );
 };
-
