@@ -291,6 +291,7 @@ export interface QuoteComparisonItem {
   inclusions: string[];
   status: string;
   is_winner: boolean;
+  scope_of_work?: string;
 }
 
 export interface QuoteComparison {
