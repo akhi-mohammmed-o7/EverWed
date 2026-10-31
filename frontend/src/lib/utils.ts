@@ -28,6 +28,23 @@ export function formatINRFull(amount: number): string {
   }).format(amount);
 }
 
+export function formatCurrency(amount: number, currency: string = "INR"): string {
+  if (isNaN(amount) || amount === null || amount === undefined) return "0";
+  if (currency === "INR") {
+    return formatINR(amount);
+  }
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toLocaleString()}`;
+  }
+}
+
 export function formatDate(dateStr: string): string {
   if (!dateStr) return "TBD";
   try {
@@ -107,4 +124,3 @@ export function formatStatusLabel(status: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
-
