@@ -44,3 +44,4 @@ export const Badge: React.FC<BadgeProps> = ({ status, variant = "default", class
     </span>
   );
 };
+

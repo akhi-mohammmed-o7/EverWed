@@ -91,3 +91,4 @@ export const CoupleEventsPage: React.FC = () => {
     </div>
   );
 };
+

@@ -106,3 +106,4 @@ export const CoupleMoodboardPage: React.FC = () => {
     </div>
   );
 };
+

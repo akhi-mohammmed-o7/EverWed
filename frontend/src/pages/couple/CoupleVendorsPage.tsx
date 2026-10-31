@@ -90,3 +90,4 @@ export const CoupleVendorsPage: React.FC = () => {
     </div>
   );
 };
+

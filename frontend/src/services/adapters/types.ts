@@ -144,3 +144,4 @@ export interface ServiceAdapter {
   guests: GuestService;
   isDemo: boolean;
 }
+

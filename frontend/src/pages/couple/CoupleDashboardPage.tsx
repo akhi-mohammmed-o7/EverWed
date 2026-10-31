@@ -193,3 +193,4 @@ export const CoupleDashboardPage: React.FC = () => {
     </div>
   );
 };
+

@@ -165,3 +165,4 @@ export const realAdapter: ServiceAdapter = {
     delete: (_id) => Promise.resolve(),
   },
 };
+

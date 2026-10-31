@@ -7,3 +7,4 @@ const useRealAPI = import.meta.env.VITE_USE_REAL_API === "true";
 
 export const services: ServiceAdapter = useRealAPI ? realAdapter : mockAdapter;
 export { type ServiceAdapter };
+

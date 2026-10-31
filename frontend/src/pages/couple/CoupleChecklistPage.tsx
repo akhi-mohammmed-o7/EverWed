@@ -122,3 +122,4 @@ export const CoupleChecklistPage: React.FC = () => {
     </div>
   );
 };
+

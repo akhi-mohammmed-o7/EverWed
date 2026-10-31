@@ -67,3 +67,4 @@ export const StatCard: React.FC<{
     </Card>
   );
 };
+

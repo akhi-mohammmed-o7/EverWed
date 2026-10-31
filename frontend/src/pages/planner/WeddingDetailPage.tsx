@@ -474,3 +474,4 @@ export const WeddingDetailPage: React.FC = () => {
     </div>
   );
 };
+
