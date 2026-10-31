@@ -11,7 +11,9 @@ from typing import List, Optional
 
 from app.core.config import get_settings
 from app.core.exceptions import DuplicateRecordError, OdooRecordNotFound, RoyalKnotException
+from app.core.money import from_paise, normalize_rupees, sum_paise, to_paise
 from app.integrations.odoo.client import get_odoo_client
+from app.services.plan_service import generate_standard_plan
 from app.schemas.finance import (
     ClientPaymentCreate,
     ClientPaymentResponse,
@@ -29,52 +31,61 @@ logger = logging.getLogger("royal_knot.finance_service")
 class FinanceService:
     @staticmethod
     def record_client_payment(payload: ClientPaymentCreate) -> ClientPaymentResponse:
-        wedding = store.weddings.get(payload.wedding_id)
-        if not wedding:
-            raise OdooRecordNotFound(detail=f"Wedding '{payload.wedding_id}' does not exist")
+        pay_id = f"pay-client-{uuid.uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc)
+        with store.transaction(immediate=True):
+            wedding = store.weddings.get(payload.wedding_id)
+            if not wedding:
+                raise OdooRecordNotFound(detail=f"Wedding '{payload.wedding_id}' does not exist")
 
-        # Idempotency / Duplicate reference protection
-        for p in store.client_payments.values():
-            if p.get("transaction_reference") == payload.transaction_reference:
+            if any(
+                payment.get("transaction_reference") == payload.transaction_reference
+                for payment in store.client_payments.values()
+            ):
                 raise DuplicateRecordError(
                     detail=f"Client payment with transaction reference '{payload.transaction_reference}' already recorded"
                 )
 
-        pay_id = f"pay-client-{uuid.uuid4().hex[:8]}"
-        now = datetime.now(timezone.utc)
+            data = {
+                "id": pay_id,
+                "wedding_id": payload.wedding_id,
+                "stage": payload.stage,
+                "amount": normalize_rupees(payload.amount),
+                "payment_method": payload.payment_method,
+                "transaction_reference": payload.transaction_reference,
+                "payment_date": payload.payment_date,
+                "status": "received",
+                "notes": payload.notes,
+                "odoo_payment_id": None,
+                "created_at": now,
+            }
+            store.client_payments[pay_id] = data
 
-        # Odoo Payment sync if configured
-        odoo_payment_id = None
+            if payload.stage == "booking_deposit" and data["status"] in ("received", "verified"):
+                wedding["status"] = "confirmed"
+                wedding["updated_at"] = now
+                store.weddings[payload.wedding_id] = wedding
+                generate_standard_plan(payload.wedding_id)
+
+        # Odoo remains an optional best-effort sync after the local transaction commits.
         settings = get_settings()
         if settings.odoo_configured and wedding.get("odoo_partner_id"):
             try:
                 client = get_odoo_client()
                 client.authenticate()
-                pay_vals = {
+                odoo_payment_id = client.create("account.payment", {
                     "payment_type": "inbound",
                     "partner_type": "customer",
                     "partner_id": wedding["odoo_partner_id"],
-                    "amount": payload.amount,
+                    "amount": data["amount"],
                     "ref": f"Wedding {wedding['title']} - {payload.stage} - Ref: {payload.transaction_reference}",
-                }
-                odoo_payment_id = client.create("account.payment", pay_vals)
+                })
+                if odoo_payment_id:
+                    data["odoo_payment_id"] = odoo_payment_id
+                    store.client_payments[pay_id] = data
             except Exception as exc:
                 logger.warning("Could not sync client payment to Odoo: %s", exc)
 
-        data = {
-            "id": pay_id,
-            "wedding_id": payload.wedding_id,
-            "stage": payload.stage,
-            "amount": payload.amount,
-            "payment_method": payload.payment_method,
-            "transaction_reference": payload.transaction_reference,
-            "payment_date": payload.payment_date,
-            "status": "received",
-            "notes": payload.notes,
-            "odoo_payment_id": odoo_payment_id,
-            "created_at": now,
-        }
-        store.client_payments[pay_id] = data
         return ClientPaymentResponse(**data)
 
     @staticmethod
@@ -103,10 +114,11 @@ class FinanceService:
                     detail=f"Vendor bill with number '{payload.bill_number}' for vendor '{vendor['name']}' already exists"
                 )
 
-        variance = round(payload.billed_amount - payload.agreed_amount, 2)
+        variance_paise = to_paise(payload.billed_amount) - to_paise(payload.agreed_amount)
+        variance = from_paise(variance_paise)
         # Mandatory variance explanation rule:
         # If final billed amount exceeds originally agreed price, require an explicit explanation
-        if variance > 0 and not payload.variance_reason:
+        if variance_paise > 0 and not payload.variance_reason:
             raise RoyalKnotException(
                 status_code=422,
                 detail=f"Final bill amount (₹{payload.billed_amount:,.2f}) exceeds agreed price (₹{payload.agreed_amount:,.2f}) by ₹{variance:,.2f}. An explicit variance_reason (e.g. extra guest plates, overtime hours) is mandatory for financial approval.",
@@ -142,12 +154,12 @@ class FinanceService:
             "event_id": payload.event_id,
             "quote_id": payload.quote_id,
             "bill_number": payload.bill_number,
-            "agreed_amount": payload.agreed_amount,
-            "billed_amount": payload.billed_amount,
+            "agreed_amount": normalize_rupees(payload.agreed_amount),
+            "billed_amount": normalize_rupees(payload.billed_amount),
             "variance": variance,
             "variance_reason": payload.variance_reason,
             "total_paid": 0.0,
-            "outstanding_balance": payload.billed_amount,
+            "outstanding_balance": normalize_rupees(payload.billed_amount),
             "status": "pending",
             "payments": [],
             "bill_date": payload.bill_date,
@@ -169,10 +181,12 @@ class FinanceService:
                 VendorPaymentResponse(**p) for p in store.vendor_payments.values()
                 if p.get("bill_id") == b["id"]
             ]
-            total_paid = sum(p.amount for p in bill_payments)
+            total_paid_paise = sum_paise((p.model_dump() for p in bill_payments), "amount")
+            total_paid = from_paise(total_paid_paise)
             b["total_paid"] = total_paid
-            b["outstanding_balance"] = round(max(0.0, b["billed_amount"] - total_paid), 2)
-            if total_paid >= b["billed_amount"]:
+            outstanding_paise = max(0, to_paise(b["billed_amount"]) - total_paid_paise)
+            b["outstanding_balance"] = from_paise(outstanding_paise)
+            if total_paid_paise >= to_paise(b["billed_amount"]):
                 b["status"] = "paid"
             elif total_paid > 0:
                 b["status"] = "partially_paid"
@@ -184,6 +198,11 @@ class FinanceService:
 
     @staticmethod
     def record_vendor_payment(payload: VendorPaymentCreate) -> VendorPaymentResponse:
+        with store.transaction(immediate=True):
+            return FinanceService._record_vendor_payment(payload)
+
+    @staticmethod
+    def _record_vendor_payment(payload: VendorPaymentCreate) -> VendorPaymentResponse:
         bill = store.vendor_bills.get(payload.bill_id)
         if not bill:
             raise OdooRecordNotFound(detail=f"Vendor Bill '{payload.bill_id}' not found")
@@ -196,14 +215,18 @@ class FinanceService:
                 )
 
         # Ensure not overpaying beyond bill amount
-        current_paid = sum(
-            p["amount"] for p in store.vendor_payments.values()
-            if p.get("bill_id") == payload.bill_id
+        current_paid_paise = sum_paise(
+            (p for p in store.vendor_payments.values() if p.get("bill_id") == payload.bill_id),
+            "amount",
         )
-        if current_paid + payload.amount > bill["billed_amount"] + 0.01:
+        amount_paise = to_paise(payload.amount)
+        billed_paise = to_paise(bill["billed_amount"])
+        if current_paid_paise + amount_paise > billed_paise:
+            amount = from_paise(amount_paise)
+            remaining = from_paise(max(0, billed_paise - current_paid_paise))
             raise RoyalKnotException(
                 status_code=400,
-                detail=f"Payment amount ₹{payload.amount:,.2f} would exceed remaining bill balance of ₹{(bill['billed_amount'] - current_paid):,.2f}",
+                detail=f"Payment amount ?{amount:,.2f} would exceed remaining bill balance of ?{remaining:,.2f}",
                 error_code="OVERPAYMENT_PROHIBITED",
             )
 
@@ -214,7 +237,7 @@ class FinanceService:
             "id": pay_id,
             "bill_id": payload.bill_id,
             "vendor_id": bill["vendor_id"],
-            "amount": payload.amount,
+            "amount": from_paise(amount_paise),
             "payment_type": payload.payment_type,
             "payment_method": payload.payment_method,
             "transaction_reference": payload.transaction_reference,
@@ -225,13 +248,15 @@ class FinanceService:
         store.vendor_payments[pay_id] = data
 
         # Recalculate bill status
-        new_paid = current_paid + payload.amount
+        new_paid_paise = current_paid_paise + amount_paise
+        new_paid = from_paise(new_paid_paise)
         bill["total_paid"] = new_paid
-        bill["outstanding_balance"] = round(max(0.0, bill["billed_amount"] - new_paid), 2)
-        if new_paid >= bill["billed_amount"]:
+        bill["outstanding_balance"] = from_paise(max(0, billed_paise - new_paid_paise))
+        if new_paid_paise >= billed_paise:
             bill["status"] = "paid"
         else:
             bill["status"] = "partially_paid"
+        store.vendor_bills[payload.bill_id] = bill
 
         return VendorPaymentResponse(**data)
 
@@ -241,42 +266,53 @@ class FinanceService:
         if not wedding:
             raise OdooRecordNotFound(detail=f"Wedding '{wedding_id}' not found")
 
-        contract_value = wedding.get("budget_allocated", 0.0)
-        
-        # Client side: received vs outstanding
-        client_paid = sum(
-            p["amount"] for p in store.client_payments.values()
-            if p.get("wedding_id") == wedding_id and p.get("status") in ("received", "verified")
+        # A planning budget is not signed revenue. Only a package fee
+        # explicitly recorded in the wedding contributes to receivables/profit.
+        contract_value_paise = to_paise(wedding.get("package_fee", 0.0))
+        contract_value = from_paise(contract_value_paise)
+
+        client_paid_paise = sum_paise(
+            (
+                p for p in store.client_payments.values()
+                if p.get("wedding_id") == wedding_id and p.get("status") in ("received", "verified")
+            ),
+            "amount",
         )
-        client_outstanding = round(max(0.0, contract_value - client_paid), 2)
-        if client_paid >= contract_value:
+        client_paid = from_paise(client_paid_paise)
+        client_outstanding = from_paise(max(0, contract_value_paise - client_paid_paise))
+        if contract_value_paise > 0 and client_paid_paise >= contract_value_paise:
             client_status = "paid"
-        elif client_paid > 0:
+        elif client_paid_paise > 0:
             client_status = "partial"
         else:
             client_status = "pending"
 
-        # Vendor side: agreed quotes vs actual bills
-        agreed_vendor_total = sum(
-            q["normalized_total"] for q in store.quotes.values()
-            if q.get("wedding_id") == wedding_id and q.get("status") == "selected"
+        agreed_vendor_total_paise = sum_paise(
+            (
+                q for q in store.quotes.values()
+                if q.get("wedding_id") == wedding_id and q.get("status") == "selected"
+            ),
+            "normalized_total",
         )
+        agreed_vendor_total = from_paise(agreed_vendor_total_paise)
 
         bills = [b for b in store.vendor_bills.values() if b.get("wedding_id") == wedding_id]
-        actual_bills_total = sum(b["billed_amount"] for b in bills)
-        
-        vendor_paid_total = sum(
-            vp["amount"] for b in bills
-            for vp in store.vendor_payments.values() if vp.get("bill_id") == b["id"]
-        )
-        vendor_outstanding_payable = round(max(0.0, actual_bills_total - vendor_paid_total), 2)
-        cost_variance = round(actual_bills_total - agreed_vendor_total, 2)
+        actual_bills_total_paise = sum_paise(bills, "billed_amount")
+        actual_bills_total = from_paise(actual_bills_total_paise)
 
-        # Net Profit = Contract Value minus Actual Vendor Expenses
-        # If bills haven't arrived yet, estimated using agreed vendor cost
-        expenses = actual_bills_total if actual_bills_total > 0 else agreed_vendor_total
-        net_profit = round(contract_value - expenses, 2)
-        margin_pct = round((net_profit / contract_value * 100), 2) if contract_value > 0 else 0.0
+        bill_ids = {b["id"] for b in bills}
+        vendor_paid_total_paise = sum_paise(
+            (vp for vp in store.vendor_payments.values() if vp.get("bill_id") in bill_ids),
+            "amount",
+        )
+        vendor_paid_total = from_paise(vendor_paid_total_paise)
+        vendor_outstanding_payable = from_paise(max(0, actual_bills_total_paise - vendor_paid_total_paise))
+        cost_variance = from_paise(actual_bills_total_paise - agreed_vendor_total_paise)
+
+        # If bills haven't arrived yet, use agreed vendor costs as the expense estimate.
+        expenses_paise = actual_bills_total_paise if actual_bills_total_paise > 0 else agreed_vendor_total_paise
+        net_profit = from_paise(contract_value_paise - expenses_paise)
+        margin_pct = round((net_profit / contract_value * 100), 2) if contract_value_paise > 0 else 0.0
 
         return WeddingFinancialSummary(
             wedding_id=wedding_id,

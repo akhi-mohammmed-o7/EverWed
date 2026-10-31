@@ -44,6 +44,7 @@ class HealthResponse(BaseModel):
 
     status: str
     version: str
+    database_connected: bool = True
     odoo_connected: bool
     odoo_version: Optional[str] = None
     timestamp: str

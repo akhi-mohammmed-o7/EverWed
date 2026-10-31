@@ -1,5 +1,5 @@
 """
-Royal Knot OS — Comprehensive End-to-End Workflow & Integration Tests.
+Royal Knot OS â€” Comprehensive End-to-End Workflow & Integration Tests.
 
 Validates the full operational sequence across all 7 core modules:
 1. Enquiry capture & client information
@@ -27,7 +27,8 @@ from fastapi.testclient import TestClient
 
 class TestRoyalKnotEndToEndWorkflow:
     def test_full_season_wedding_lifecycle(self, client: TestClient) -> None:
-        # ── 1. Create Client Enquiry ──────────────────────────────────────────
+        client.post("/api/v1/demo/seed")
+        # â”€â”€ 1. Create Client Enquiry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         enquiry_payload = {
             "bride_name": "Aisha Sharma",
             "groom_name": "Vikram Singh Rathore",
@@ -49,7 +50,7 @@ class TestRoyalKnotEndToEndWorkflow:
         assert enquiry_data["bride_name"] == "Aisha Sharma"
         assert enquiry_data["status"] == "new"
 
-        # ── 2. Record First Meeting & Update Enquiry ──────────────────────────
+        # â”€â”€ 2. Record First Meeting & Update Enquiry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         meeting_payload = {
             "meeting": {
                 "meeting_date": "2026-11-05T15:00:00Z",
@@ -65,9 +66,10 @@ class TestRoyalKnotEndToEndWorkflow:
         assert enquiry_updated["agreement_signed"] is True
         assert len(enquiry_updated["meetings"]) == 1
 
-        # ── 3. Convert Confirmed Enquiry into Wedding ──────────────────────────
+        # â”€â”€ 3. Convert Confirmed Enquiry into Wedding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         convert_payload = {
             "confirmed_budget": 35000000.0,
+            "confirmed_package_fee": 35000000.0,
             "primary_venue": "City Palace Jaipur",
             "wedding_start_date": "2026-12-10",
             "wedding_end_date": "2026-12-13",
@@ -78,14 +80,14 @@ class TestRoyalKnotEndToEndWorkflow:
         wedding_data = convert_res["wedding"]
         wedding_id = wedding_data["id"]
         assert wedding_data["budget_allocated"] == 35000000.0
-        assert wedding_data["tasks_count"] >= 25  # 25+ standard operational tasks generated
+        assert wedding_data["tasks_count"] == 0  # Plan waits for a recorded booking deposit
 
         # Verify wedding endpoint retrieves it
         res = client.get(f"/api/v1/weddings/{wedding_id}")
         assert res.status_code == 200
-        assert res.json()["data"]["title"] == "The Royal Union: Aisha Sharma & Vikram Singh Rathore"
+        assert res.json()["data"]["title"] == "Aisha Sharma & Vikram Singh Rathore"
 
-        # ── 4. Create Multiple Events under Wedding ───────────────────────────
+        # â”€â”€ 4. Create Multiple Events under Wedding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         events = [
             {
                 "name": "Royal Mehendi",
@@ -136,16 +138,16 @@ class TestRoyalKnotEndToEndWorkflow:
         listed_events = res.json()["data"]
         assert len(listed_events) == 4
 
-        # ── 5. Vendor Directory ───────────────────────────────────────────────
+        # â”€â”€ 5. Vendor Directory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res = client.get("/api/v1/vendors")
         assert res.status_code == 200
         vendors = res.json()["data"]
         assert len(vendors) >= 5
 
-        # ── 6. Request & Compare Quotations (Three Caterers, One Decision) ─────
+        # â”€â”€ 6. Request & Compare Quotations (Three Caterers, One Decision) â”€â”€â”€â”€â”€
         reception_event_id = created_events["Grand Imperial Banquet & Reception"]["id"]
 
-        # Quote 1: Rajputana Royal Feast (Per plate ₹4,500 for 500 guests = ₹2,250,000)
+        # Quote 1: Rajputana Royal Feast (Per plate â‚¹4,500 for 500 guests = â‚¹2,250,000)
         q1 = {
             "wedding_id": wedding_id,
             "vendor_id": "v-royal-palace-caterers",
@@ -163,7 +165,7 @@ class TestRoyalKnotEndToEndWorkflow:
         quote1_id = res1.json()["data"]["id"]
         assert res1.json()["data"]["normalized_total"] == 2250000.0
 
-        # Quote 2: Mewar Shahi Banquets (Per plate ₹4,800 for 500 guests = ₹2,400,000)
+        # Quote 2: Mewar Shahi Banquets (Per plate â‚¹4,800 for 500 guests = â‚¹2,400,000)
         q2 = {
             "wedding_id": wedding_id,
             "vendor_id": "v-shahi-caterers-udaipur",
@@ -187,7 +189,7 @@ class TestRoyalKnotEndToEndWorkflow:
         assert len(comp_data["quotes"]) == 2
         assert comp_data["lowest_quote_id"] == quote1_id
 
-        # ── 7. Select Winning Quote & Auto-Reject Competing Quotes ─────────────
+        # â”€â”€ 7. Select Winning Quote & Auto-Reject Competing Quotes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res_sel = client.post(f"/api/v1/quotes/{quote1_id}/select")
         assert res_sel.status_code == 200
         assert "winner" in res_sel.json()["data"]["message"].lower()
@@ -198,7 +200,7 @@ class TestRoyalKnotEndToEndWorkflow:
         assert quotes_map[quote1_id] == "selected"
         assert quotes_map[quote2_id] == "rejected"
 
-        # Also select Decor quote (Fixed Price ₹3,500,000)
+        # Also select Decor quote (Fixed Price â‚¹3,500,000)
         q_decor = {
             "wedding_id": wedding_id,
             "vendor_id": "v-palace-decor",
@@ -213,19 +215,12 @@ class TestRoyalKnotEndToEndWorkflow:
         quote_decor_id = res_dec.json()["data"]["id"]
         client.post(f"/api/v1/quotes/{quote_decor_id}/select")
 
-        # ── 8. Task Management & Progress ─────────────────────────────────────
+        # â”€â”€ 8. Task Management & Progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res_tasks = client.get(f"/api/v1/weddings/{wedding_id}/tasks")
         assert res_tasks.status_code == 200
-        tasks_list = res_tasks.json()["data"]
-        assert len(tasks_list) >= 25
+        assert res_tasks.json()["data"] == []  # Booking deposit has not been recorded yet
 
-        # Update first task to Done
-        first_task_id = tasks_list[0]["id"]
-        res_t_up = client.patch(f"/api/v1/tasks/{first_task_id}", json={"status": "done"})
-        assert res_t_up.status_code == 200
-        assert res_t_up.json()["data"]["status"] == "done"
-
-        # ── 9. Wedding Operations & Day-of Schedule ───────────────────────────
+        # â”€â”€ 9. Wedding Operations & Day-of Schedule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sched_item = {
             "time_slot": "16:00",
             "title": "Baraat Procession & Dhol Arrival",
@@ -253,7 +248,7 @@ class TestRoyalKnotEndToEndWorkflow:
         assert res_arr.status_code == 200
         assert res_arr.json()["data"]["status"] == "arrived"
 
-        # ── 10. Report & Resolve Operational Issue ────────────────────────────
+        # â”€â”€ 10. Report & Resolve Operational Issue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         issue_payload = {
             "wedding_id": wedding_id,
             "event_id": reception_event_id,
@@ -274,7 +269,7 @@ class TestRoyalKnotEndToEndWorkflow:
         assert res_res.status_code == 200
         assert res_res.json()["data"]["status"] == "resolved"
 
-        # ── 11. Staged Client Payments & Idempotency ──────────────────────────
+        # â”€â”€ 11. Staged Client Payments & Idempotency â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         pay1 = {
             "wedding_id": wedding_id,
             "stage": "booking_deposit",
@@ -286,10 +281,23 @@ class TestRoyalKnotEndToEndWorkflow:
         }
         res_p1 = client.post("/api/v1/finance/client-payments", json=pay1)
         assert res_p1.status_code == 201
+        confirmed_wedding = client.get(f"/api/v1/weddings/{wedding_id}").json()["data"]
+        assert confirmed_wedding["status"] == "confirmed"
+        tasks_after_deposit = client.get(f"/api/v1/weddings/{wedding_id}/tasks").json()["data"]
+        assert len(tasks_after_deposit) >= 25
+        venue_task = next(task for task in tasks_after_deposit if task["title"] == "Confirm venue requirements, access and signed agreement")
+        assert venue_task["due_date"] == "2026-09-11"
+        assert venue_task["status"] == "to_plan"
+        assert venue_task["owner"] == "Lead Planner"
+        first_task_id = tasks_after_deposit[0]["id"]
+        res_t_up = client.patch(f"/api/v1/tasks/{first_task_id}", json={"status": "done"})
+        assert res_t_up.status_code == 200
+        assert res_t_up.json()["data"]["status"] == "done"
 
         # Attempting duplicate transaction reference should fail
         res_dup = client.post("/api/v1/finance/client-payments", json=pay1)
         assert res_dup.status_code == 409  # Conflict / Duplicate
+        assert len(client.get(f"/api/v1/weddings/{wedding_id}/tasks").json()["data"]) == len(tasks_after_deposit)
 
         # Second stage client payment (Advance 1 month prior)
         pay2 = {
@@ -302,8 +310,8 @@ class TestRoyalKnotEndToEndWorkflow:
         }
         client.post("/api/v1/finance/client-payments", json=pay2)
 
-        # ── 12. Vendor Bills & Mandatory Variance Verification ────────────────
-        # Case A: Bill exceeds agreed quote (₹2,250,000 -> ₹2,475,000 due to 50 extra guests) WITHOUT explanation -> Must fail
+        # â”€â”€ 12. Vendor Bills & Mandatory Variance Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # Case A: Bill exceeds agreed quote (â‚¹2,250,000 -> â‚¹2,475,000 due to 50 extra guests) WITHOUT explanation -> Must fail
         bad_bill = {
             "wedding_id": wedding_id,
             "vendor_id": "v-royal-palace-caterers",
@@ -324,7 +332,7 @@ class TestRoyalKnotEndToEndWorkflow:
             "bill_number": "INV-CAT-2026-001",
             "agreed_amount": 2250000.0,
             "billed_amount": 2475000.0,
-            "variance_reason": "Client approved 50 additional banquet guests (550 total at ₹4,500/plate).",
+            "variance_reason": "Client approved 50 additional banquet guests (550 total at â‚¹4,500/plate).",
             "bill_date": "2026-12-14",
             "due_date": "2026-12-25",
         }
@@ -333,7 +341,7 @@ class TestRoyalKnotEndToEndWorkflow:
         bill_id = res_b.json()["data"]["id"]
         assert res_b.json()["data"]["variance"] == 225000.0
 
-        # Decor Bill (exact agreed amount ₹3,500,000)
+        # Decor Bill (exact agreed amount â‚¹3,500,000)
         decor_bill = {
             "wedding_id": wedding_id,
             "vendor_id": "v-palace-decor",
@@ -346,20 +354,20 @@ class TestRoyalKnotEndToEndWorkflow:
         res_db = client.post("/api/v1/finance/vendor-bills", json=decor_bill)
         decor_bill_id = res_db.json()["data"]["id"]
 
-        # ── 13. Vendor Payments & Overpayment Protection ──────────────────────
+        # â”€â”€ 13. Vendor Payments & Overpayment Protection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # Advance payment to caterer
         vp1 = {
             "bill_id": bill_id,
             "amount": 1000000.0,
             "payment_type": "advance",
             "payment_method": "Bank Transfer",
-            "transaction_reference": "TXN-VEND-CAT-ADV",
+            "transaction_reference": "TXN-WORKFLOW-CAT-ADV",
             "payment_date": "2026-12-01",
         }
         res_vp1 = client.post("/api/v1/finance/vendor-payments", json=vp1)
         assert res_vp1.status_code == 201
 
-        # Overpayment check: remaining balance is ₹1,475,000. Attempting ₹2,000,000 must fail
+        # Overpayment check: remaining balance is â‚¹1,475,000. Attempting â‚¹2,000,000 must fail
         overpay = {
             "bill_id": bill_id,
             "amount": 2000000.0,
@@ -371,13 +379,13 @@ class TestRoyalKnotEndToEndWorkflow:
         res_over = client.post("/api/v1/finance/vendor-payments", json=overpay)
         assert res_over.status_code == 400  # Overpayment prohibited
 
-        # Final settlement payment of exact remaining balance ₹1,475,000
+        # Final settlement payment of exact remaining balance â‚¹1,475,000
         vp2 = {
             "bill_id": bill_id,
             "amount": 1475000.0,
             "payment_type": "final",
             "payment_method": "Bank Transfer",
-            "transaction_reference": "TXN-VEND-CAT-FINAL",
+            "transaction_reference": "TXN-WORKFLOW-CAT-FINAL",
             "payment_date": "2026-12-15",
         }
         res_vp2 = client.post("/api/v1/finance/vendor-payments", json=vp2)
@@ -389,7 +397,7 @@ class TestRoyalKnotEndToEndWorkflow:
         assert cat_bill_rec["status"] == "paid"
         assert cat_bill_rec["outstanding_balance"] == 0.0
 
-        # ── 14. Wedding Financial Summary ─────────────────────────────────────
+        # â”€â”€ 14. Wedding Financial Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res_fin = client.get(f"/api/v1/finance/weddings/{wedding_id}/summary")
         assert res_fin.status_code == 200
         summary = res_fin.json()["data"]
@@ -399,13 +407,13 @@ class TestRoyalKnotEndToEndWorkflow:
         assert summary["client_paid_amount"] == 25000000.0
         # Outstanding receivable from client: 1.0 Crore
         assert summary["client_outstanding_receivable"] == 10000000.0
-        # Total vendor bills recorded: ₹2,475,000 (caterer) + ₹3,500,000 (decor) = ₹5,975,000
+        # Total vendor bills recorded: â‚¹2,475,000 (caterer) + â‚¹3,500,000 (decor) = â‚¹5,975,000
         assert summary["actual_vendor_bills_total"] == 5975000.0
         # Net agency profit: 35,000,000 - 5,975,000 = 29,025,000
         assert summary["net_agency_profit"] == 29025000.0
         assert summary["profit_margin_percentage"] > 80.0
 
-        # ── 15. Executive Season Dashboard Overview ───────────────────────────
+        # â”€â”€ 15. Executive Season Dashboard Overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         res_dash = client.get("/api/v1/dashboard/overview")
         assert res_dash.status_code == 200
         dash = res_dash.json()["data"]

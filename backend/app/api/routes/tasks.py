@@ -5,8 +5,9 @@ Royal Knot OS — Tasks and Planning API Routes.
 from __future__ import annotations
 
 from typing import List, Optional
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
+from app.api.dependencies import require_role, require_task_access, require_wedding_access
 from app.schemas.common import APIResponse
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from app.services.task_service import TaskService
@@ -15,7 +16,12 @@ router = APIRouter(tags=["tasks"])
 
 
 @router.post("/api/v1/weddings/{wedding_id}/tasks", response_model=APIResponse[TaskResponse], status_code=status.HTTP_201_CREATED)
-async def create_task(wedding_id: str, payload: TaskCreate):
+async def create_task(
+    wedding_id: str,
+    payload: TaskCreate,
+    _: dict = Depends(require_role("admin", "planner", "team")),
+    __: dict = Depends(require_wedding_access),
+):
     """Add a custom task to a wedding plan."""
     data = TaskService.create_task(wedding_id, payload)
     return APIResponse(success=True, data=data)
@@ -28,6 +34,7 @@ async def list_tasks(
     category: Optional[str] = Query(None, description="Filter: Venue, Decor, Catering, Legal/Contract, Day-of"),
     priority: Optional[str] = Query(None, description="Filter: low, medium, high, urgent"),
     owner: Optional[str] = Query(None, description="Filter by assignee"),
+    _: dict = Depends(require_wedding_access),
 ):
     """List planning tasks for a wedding with priority ordering and overdue indicators."""
     data = TaskService.list_tasks(
@@ -41,7 +48,12 @@ async def list_tasks(
 
 
 @router.patch("/api/v1/tasks/{task_id}", response_model=APIResponse[TaskResponse])
-async def update_task(task_id: str, payload: TaskUpdate):
+async def update_task(
+    task_id: str,
+    payload: TaskUpdate,
+    _: dict = Depends(require_role("admin", "planner", "team")),
+    __: dict = Depends(require_task_access),
+):
     """Update task progress, assignee, deadline, or mark Done."""
     data = TaskService.update_task(task_id, payload)
     return APIResponse(success=True, data=data)

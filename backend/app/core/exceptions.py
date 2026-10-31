@@ -65,6 +65,13 @@ class PermissionDeniedError(RoyalKnotException):
         super().__init__(status_code=403, detail=detail, error_code="PERMISSION_DENIED")
 
 
+class AuthenticationError(RoyalKnotException):
+    """Raised when application credentials or a bearer session are invalid."""
+
+    def __init__(self, detail: str = "Invalid email or password") -> None:
+        super().__init__(status_code=401, detail=detail, error_code="AUTHENTICATION_FAILED")
+
+
 class DuplicateRecordError(RoyalKnotException):
     """Raised when a create/write would violate a uniqueness constraint."""
 

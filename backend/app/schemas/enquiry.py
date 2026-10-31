@@ -62,6 +62,7 @@ class EnquiryResponse(EnquiryBase):
 class ConvertEnquiryRequest(BaseModel):
     package_type: Optional[str] = None
     confirmed_budget: Optional[float] = None
+    confirmed_package_fee: Optional[float] = Field(None, ge=0)
     primary_venue: Optional[str] = None
     wedding_start_date: Optional[str] = None
     wedding_end_date: Optional[str] = None

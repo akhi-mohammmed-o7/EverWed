@@ -95,7 +95,7 @@ class VendorBillResponse(BaseModel):
 class WeddingFinancialSummary(BaseModel):
     wedding_id: str
     wedding_title: str
-    total_contract_value: float = Field(..., description="Total package / agreed budget from client")
+    total_contract_value: float = Field(..., description="Total explicit signed package fee from client")
     client_paid_amount: float
     client_outstanding_receivable: float
     client_payment_status: str  # paid, partial, pending

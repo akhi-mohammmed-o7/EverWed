@@ -61,8 +61,12 @@ class EventService:
             "created_at": now,
             "updated_at": now,
         }
-        store.events[event_id] = data
-        wedding["events_count"] = sum(1 for e in store.events.values() if e.get("wedding_id") == wedding_id)
+        with store.transaction():
+            store.events[event_id] = data
+            wedding["events_count"] = sum(
+                1 for e in store.events.values() if e.get("wedding_id") == wedding_id
+            )
+            store.weddings[wedding_id] = wedding
         return EventResponse(**data)
 
     @staticmethod

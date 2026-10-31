@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from app.core.config import get_settings
 from app.core.exceptions import OdooRecordNotFound, RoyalKnotException
+from app.core.money import from_paise, normalize_rupees, to_paise
 from app.integrations.odoo.client import get_odoo_client
 from app.schemas.vendor import (
     QuoteComparisonItem,
@@ -121,10 +122,13 @@ class QuoteService:
         now = datetime.now(timezone.utc)
 
         # Calculate normalized total
-        if payload.pricing_type == "per_plate":
-            normalized_total = payload.unit_price * max(1, payload.estimated_quantity)
-        else:
-            normalized_total = payload.unit_price
+        unit_price_paise = to_paise(payload.unit_price)
+        normalized_total_paise = (
+            unit_price_paise * max(1, payload.estimated_quantity)
+            if payload.pricing_type == "per_plate"
+            else unit_price_paise
+        )
+        normalized_total = from_paise(normalized_total_paise)
 
         # Odoo RFQ (purchase.order state=draft) sync if configured
         odoo_po_id = None
@@ -149,13 +153,13 @@ class QuoteService:
             "vendor_category": payload.category or vendor["category"],
             "event_id": payload.event_id,
             "pricing_type": payload.pricing_type,
-            "unit_price": payload.unit_price,
+            "unit_price": from_paise(unit_price_paise),
             "estimated_quantity": payload.estimated_quantity,
             "normalized_total": normalized_total,
             "scope_of_work": payload.scope_of_work,
             "inclusions": payload.inclusions,
             "exclusions": payload.exclusions,
-            "extra_hour_rate": payload.extra_hour_rate or 0.0,
+            "extra_hour_rate": normalize_rupees(payload.extra_hour_rate or 0.0),
             "status": "draft",
             "odoo_purchase_order_id": odoo_po_id,
             "created_at": now,
@@ -202,9 +206,9 @@ class QuoteService:
         for q in matching_quotes:
             # Re-normalize if per-plate based on wedding guest count
             if q["pricing_type"] == "per_plate":
-                comp_total = q["unit_price"] * guest_count
+                comp_total = from_paise(to_paise(q["unit_price"]) * guest_count)
             else:
-                comp_total = q["unit_price"]
+                comp_total = normalize_rupees(q["unit_price"])
 
             is_selected = (q["status"] == "selected")
             if is_selected:
@@ -242,29 +246,32 @@ class QuoteService:
 
     @staticmethod
     def select_winning_quote(quote_id: str) -> dict:
-        quote = store.quotes.get(quote_id)
-        if not quote:
-            raise OdooRecordNotFound(detail=f"Quote '{quote_id}' not found")
+        # Serialize selection so concurrent requests cannot leave multiple
+        # accepted bids for the same wedding/category.
+        with store.transaction(immediate=True):
+            quote = store.quotes.get(quote_id)
+            if not quote:
+                raise OdooRecordNotFound(detail=f"Quote '{quote_id}' not found")
 
-        wedding_id = quote["wedding_id"]
-        category = quote["vendor_category"]
-        now = datetime.now(timezone.utc)
+            wedding_id = quote["wedding_id"]
+            category = quote["vendor_category"]
+            now = datetime.now(timezone.utc)
 
-        # Mark this quote selected
-        quote["status"] = "selected"
-        quote["updated_at"] = now
+            quote["status"] = "selected"
+            quote["updated_at"] = now
+            store.quotes[quote_id] = quote
 
-        # Auto-close / reject other competing quotes in this same category for this wedding
-        closed_count = 0
-        for other_q in store.quotes.values():
-            if (
-                other_q["id"] != quote_id
-                and other_q["wedding_id"] == wedding_id
-                and other_q["vendor_category"].lower() == category.lower()
-            ):
-                other_q["status"] = "rejected"
-                other_q["updated_at"] = now
-                closed_count += 1
+            closed_count = 0
+            for other_q in store.quotes.values():
+                if (
+                    other_q["id"] != quote_id
+                    and other_q["wedding_id"] == wedding_id
+                    and other_q["vendor_category"].lower() == category.lower()
+                ):
+                    other_q["status"] = "rejected"
+                    other_q["updated_at"] = now
+                    store.quotes[other_q["id"]] = other_q
+                    closed_count += 1
 
         # Confirm in Odoo if configured
         settings = get_settings()

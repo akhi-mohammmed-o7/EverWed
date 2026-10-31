@@ -9,6 +9,9 @@ from fastapi.testclient import TestClient
 
 
 def test_quote_comparison_and_auto_close_competing(client: TestClient) -> None:
+    from app.services.seed import seed_demo_data
+    seed_demo_data()
+
     # Create wedding with 400 guests
     w_payload = {
         "title": "Comparison Test Wedding",

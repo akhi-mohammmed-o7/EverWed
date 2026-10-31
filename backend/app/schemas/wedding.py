@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from datetime import date
+from pydantic import BaseModel, Field, model_validator
 
 
 class WeddingBase(BaseModel):
@@ -20,7 +21,8 @@ class WeddingBase(BaseModel):
     package_type: str = "Full-Service"  # "Full-Service" or "Partial/Day-of"
     guest_estimate: int = 400
     theme: str = "Royal Heritage"
-    budget_allocated: float = Field(..., description="Agreed budget in INR")
+    budget_allocated: float = Field(..., description="Planning budget in INR")
+    package_fee: Optional[float] = Field(None, ge=0, description="Agreed client fee in INR; distinct from the planning budget")
     start_date: str  # YYYY-MM-DD
     end_date: str  # YYYY-MM-DD
 
@@ -36,9 +38,52 @@ class WeddingUpdate(BaseModel):
     guest_estimate: Optional[int] = None
     theme: Optional[str] = None
     budget_allocated: Optional[float] = None
+    package_fee: Optional[float] = Field(None, ge=0)
     status: Optional[str] = None  # planning, in_progress, completed, settled
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+
+
+class WeddingPlannerAssignment(BaseModel):
+    planner_email: str = Field(min_length=3, max_length=254)
+
+
+class CoupleWeddingOnboarding(BaseModel):
+    destination: str = Field(min_length=1, max_length=160)
+    primary_venue: str = Field(min_length=1, max_length=200)
+    guest_estimate: int = Field(gt=0, le=100000)
+    budget_allocated: float = Field(ge=0)
+    start_date: str = Field(min_length=10, max_length=10)
+    end_date: str = Field(min_length=10, max_length=10)
+    theme: str = Field(default="", max_length=160)
+    tradition: str = Field(default="", max_length=120)
+    regional_customization: str = Field(default="", max_length=500)
+    functions: List["OnboardingFunction"] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        try:
+            start = date.fromisoformat(self.start_date)
+            end = date.fromisoformat(self.end_date)
+        except ValueError as exc:
+            raise ValueError("Wedding dates must use YYYY-MM-DD format") from exc
+        if end < start:
+            raise ValueError("Wedding end date must be on or after the start date")
+        return self
+
+
+class OnboardingFunction(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    date: str = Field(min_length=10, max_length=10)
+    start_time: str = Field(default="10:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    end_time: str = Field(default="11:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+    @model_validator(mode="after")
+    def validate_function(self):
+        if self.end_time <= self.start_time:
+            raise ValueError("Function end time must be after its start time")
+        date.fromisoformat(self.date)
+        return self
 
 
 class WeddingResponse(WeddingBase):
@@ -49,6 +94,9 @@ class WeddingResponse(WeddingBase):
     vendors_count: int = 0
     tasks_count: int = 0
     tasks_completed: int = 0
+    assigned_planner_email: Optional[str] = None
+    tradition: Optional[str] = None
+    regional_customization: Optional[str] = None
     total_agreed_vendor_cost: float = 0.0
     total_paid_by_client: float = 0.0
     total_paid_to_vendors: float = 0.0

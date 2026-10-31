@@ -20,6 +20,7 @@ class TestHealthEndpoint:
         data = client.get("/api/v1/health").json()
         assert "status" in data
         assert "version" in data
+        assert data["database_connected"] is True
         assert "odoo_connected" in data
         assert "timestamp" in data
 
@@ -52,6 +53,7 @@ class TestAuthEndpointsWithoutOdoo:
         assert response.status_code in (401, 503)
 
     def test_me_without_auth_returns_401(self, client: TestClient) -> None:
+        client.headers.pop("Authorization", None)
         response = client.get("/api/v1/auth/me")
         assert response.status_code == 401
 

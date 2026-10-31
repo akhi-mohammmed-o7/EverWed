@@ -8,8 +8,9 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.middleware.error_handler import register_exception_handlers
@@ -41,15 +42,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     if not settings.odoo_configured:
         logger.warning(
-            "Odoo connection is NOT fully configured in .env — running with local authoritative state hub."
+            "Odoo is not configured; local-first SQLite storage is active."
         )
 
-    # Pre-seed realistic luxury wedding dataset for instant demonstration
+    from app.services.store import store
     from app.services.seed import seed_demo_data
-    seed_demo_data()
-    logger.info("EverWed demo dataset pre-seeded successfully.")
 
-    yield
+    if not store.ping():
+        raise RuntimeError("The configured SQLite database failed its startup ping")
+    if settings.seed_demo_data_on_startup:
+        seed_result = seed_demo_data()
+        logger.info("EverWed demo data status: %s", seed_result.get("message"))
+    else:
+        logger.info("Startup demo seeding is disabled; stored application data was preserved")
+
+    try:
+        yield
+    finally:
+        store.close()
 
 
 def create_app() -> FastAPI:
@@ -74,6 +84,26 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    @application.middleware("http")
+    async def verify_cookie_request_origin(request, call_next):
+        """Reject cross-origin state changes made with a browser session cookie."""
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and request.cookies.get("everwed_session"):
+            origin = request.headers.get("origin")
+            allowed = {value.rstrip("/") for value in settings.cors_origins}
+            if origin and origin.rstrip("/") not in allowed:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "success": False,
+                        "error": {
+                            "code": "CSRF_ORIGIN_REJECTED",
+                            "message": "Request origin is not allowed.",
+                            "detail": "",
+                        },
+                    },
+                )
+        return await call_next(request)
+
     # ── Exception handlers ───────────────────────────────────────────
     register_exception_handlers(application)
 
@@ -89,6 +119,7 @@ def create_app() -> FastAPI:
     from app.api.routes.operations import router as operations_router
     from app.api.routes.finance import router as finance_router
     from app.api.routes.dashboard import router as dashboard_router
+    from app.api.routes.guests import router as guests_router
 
     application.include_router(health_router)
     application.include_router(auth_router)
@@ -101,13 +132,15 @@ def create_app() -> FastAPI:
     application.include_router(operations_router)
     application.include_router(finance_router)
     application.include_router(dashboard_router)
+    application.include_router(guests_router)
 
     # ── Demo Seeder Endpoint ─────────────────────────────────────────
     from app.schemas.common import APIResponse
     from app.services.seed import seed_demo_data
+    from app.api.dependencies import require_role
 
     @application.post("/api/v1/demo/seed", response_model=APIResponse, tags=["demo"])
-    async def seed_data():
+    async def seed_data(_: dict = Depends(require_role("admin"))):
         """Populate realistic luxury wedding demonstration data for The Royal Knot."""
         res = seed_demo_data()
         return APIResponse(success=True, data=res)

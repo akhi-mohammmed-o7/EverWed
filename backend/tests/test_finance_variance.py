@@ -9,6 +9,9 @@ from fastapi.testclient import TestClient
 
 
 def test_variance_explanation_and_overpayment_protection(client: TestClient) -> None:
+    from app.services.seed import seed_demo_data
+    seed_demo_data()
+
     # 1. Setup wedding
     w_payload = {
         "title": "Finance Test Wedding",
@@ -18,7 +21,8 @@ def test_variance_explanation_and_overpayment_protection(client: TestClient) -> 
         "contact_email": "simran@test.com",
         "destination": "Jaipur",
         "primary_venue": "Chomu Palace",
-        "budget_allocated": 10000000.0,  # 1 Crore
+        "budget_allocated": 10000000.0,  # planning budget
+        "package_fee": 10000000.0,
         "start_date": "2026-12-15",
         "end_date": "2026-12-17",
     }
@@ -110,4 +114,23 @@ def test_variance_explanation_and_overpayment_protection(client: TestClient) -> 
     assert fin["vendor_paid_amount"] == 1200000.0
     assert fin["vendor_outstanding_payable"] == 0.0
     assert fin["net_agency_profit"] == 10000000.0 - 1200000.0
+
+
+def test_planning_budget_is_not_reported_as_client_contract_revenue(client: TestClient) -> None:
+    wedding = client.post("/api/v1/weddings", json={
+        "title": "Budget versus Fee",
+        "bride_name": "Budget",
+        "groom_name": "Test",
+        "contact_phone": "+91 90000 00000",
+        "contact_email": "budget-test@example.com",
+        "destination": "Jaipur",
+        "primary_venue": "Test Venue",
+        "budget_allocated": 1200000.01,
+        "package_fee": 250000.29,
+        "start_date": "2027-06-01",
+        "end_date": "2027-06-02",
+    }).json()["data"]
+    summary = client.get(f"/api/v1/finance/weddings/{wedding['id']}/summary").json()["data"]
+    assert summary["total_contract_value"] == 250000.29
+    assert summary["client_outstanding_receivable"] == 250000.29
 

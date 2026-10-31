@@ -12,7 +12,21 @@ logger = logging.getLogger("royal_knot.seed")
 
 
 def seed_demo_data() -> dict:
-    """Populate full-season luxury wedding demo records for The Royal Knot."""
+    """Seed demo records once without overwriting user or business records."""
+    with store.transaction(immediate=True):
+        if "enq-royal-demo-001" in store.enquiries:
+            return {
+                "message": "Demo data already exists; existing records were preserved",
+                "wedding_id": "wed-royal-jaipur-001",
+                "already_seeded": True,
+            }
+        result = _seed_demo_records()
+        result["already_seeded"] = False
+        return result
+
+
+def _seed_demo_records() -> dict:
+    """Populate the baseline luxury wedding demo records."""
     now = datetime.now(timezone.utc)
     
     # 1. Enquiry
@@ -65,7 +79,8 @@ def seed_demo_data() -> dict:
         "package_type": "Full-Service",
         "guest_estimate": 450,
         "theme": "Royal Heritage Palace",
-        "budget_allocated": 35000000.0,  # 3.5 Crores
+        "budget_allocated": 35000000.0,  # planning budget
+        "package_fee": 35000000.0,
         "start_date": "2026-12-10",
         "end_date": "2026-12-13",
         "status": "in_progress",
@@ -108,7 +123,19 @@ def seed_demo_data() -> dict:
             "updated_at": now,
         }
 
-    # 4. Standard Tasks
+    # 4. Explicit demo vendor fixtures (never injected by Store startup).
+    demo_vendors = [
+        {"id": "v-royal-palace-caterers", "name": "Rajputana Royal Feast & Catering", "category": "Catering", "contact_person": "Demo Catering Contact", "phone": "+91 90000 10001", "email": "catering-demo@example.invalid", "city": "Jaipur", "rating": 4.9, "services_offered": ["Banquet catering", "Live counters"]},
+        {"id": "v-shahi-caterers-udaipur", "name": "Mewar Shahi Banquets", "category": "Catering", "contact_person": "Demo Banquet Contact", "phone": "+91 90000 10002", "email": "banquet-demo@example.invalid", "city": "Udaipur", "rating": 4.8, "services_offered": ["Banquet catering", "Dessert service"]},
+        {"id": "v-palace-decor", "name": "Virasat Decor & Spatial Design", "category": "Decor", "contact_person": "Demo Decor Contact", "phone": "+91 90000 10003", "email": "decor-demo@example.invalid", "city": "Jaipur", "rating": 5.0, "services_offered": ["Floral design", "Lighting"]},
+        {"id": "v-royal-dhol-dj", "name": "Desert Beats Production", "category": "Entertainment/DJ", "contact_person": "Demo Entertainment Contact", "phone": "+91 90000 10004", "email": "music-demo@example.invalid", "city": "Jaipur", "rating": 4.9, "services_offered": ["DJ", "Live music"]},
+        {"id": "v-regal-photo", "name": "The Heritage Reel Studios", "category": "Photography", "contact_person": "Demo Photography Contact", "phone": "+91 90000 10005", "email": "photo-demo@example.invalid", "city": "Udaipur", "rating": 4.95, "services_offered": ["Photography", "Film"]},
+    ]
+    for vendor in demo_vendors:
+        vendor.update({"created_at": now, "updated_at": now})
+        store.vendors.setdefault(vendor["id"], vendor)
+
+    # 5. Standard Tasks
     for i, tpl in enumerate(STANDARD_WEDDING_TASKS):
         tid = f"task-demo-{i+1:02d}"
         status = "done" if i < 8 else ("in_progress" if i < 15 else "to_plan")
@@ -129,7 +156,7 @@ def seed_demo_data() -> dict:
             "updated_at": now,
         }
 
-    # 5. Quotes (Catering selected, Decor selected)
+    # 6. Quotes (Catering selected, Decor selected)
     store.quotes["q-caterer-winner"] = {
         "id": "q-caterer-winner",
         "wedding_id": wedding_id,
@@ -171,7 +198,7 @@ def seed_demo_data() -> dict:
         "updated_at": now,
     }
 
-    # 6. Client Payments
+    # 7. Client Payments
     store.client_payments["pay-client-demo-1"] = {
         "id": "pay-client-demo-1",
         "wedding_id": wedding_id,
@@ -199,7 +226,7 @@ def seed_demo_data() -> dict:
         "created_at": now,
     }
 
-    # 7. Vendor Bills & Payments
+    # 8. Vendor Bills & Payments
     bill_id = "bill-demo-caterer-01"
     store.vendor_bills[bill_id] = {
         "id": bill_id,
@@ -248,7 +275,7 @@ def seed_demo_data() -> dict:
         "created_at": now,
     }
 
-    # 8. Operational Schedule & Arrival
+    # 9. Operational Schedule & Arrival
     store.schedules["sch-demo-1"] = {
         "id": "sch-demo-1",
         "wedding_id": wedding_id,
@@ -277,7 +304,7 @@ def seed_demo_data() -> dict:
         "notes": "Truck arrived at service gate, prep kitchen active.",
     }
 
-    # 9. Operational Issue
+    # 10. Operational Issue
     store.operational_issues["iss-demo-1"] = {
         "id": "iss-demo-1",
         "wedding_id": wedding_id,

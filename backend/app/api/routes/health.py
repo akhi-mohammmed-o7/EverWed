@@ -15,6 +15,7 @@ from fastapi import APIRouter
 from app.core.config import get_settings
 from app.integrations.odoo.client import get_odoo_client
 from app.schemas.common import HealthResponse
+from app.services.store import store
 
 logger = logging.getLogger("royal_knot.health")
 
@@ -32,6 +33,12 @@ async def health_check() -> HealthResponse:
     ``odoo_connected=false``.
     """
     settings = get_settings()
+    database_connected = False
+    try:
+        database_connected = store.ping()
+    except Exception as exc:
+        logger.error("SQLite health probe failed: %s", exc)
+
     odoo_connected = False
     odoo_version: str | None = None
 
@@ -45,8 +52,9 @@ async def health_check() -> HealthResponse:
             logger.warning("Odoo health probe failed: %s", exc)
 
     return HealthResponse(
-        status="healthy",
+        status="healthy" if database_connected else "unhealthy",
         version=settings.app_version,
+        database_connected=database_connected,
         odoo_connected=odoo_connected,
         odoo_version=odoo_version,
         timestamp=datetime.now(timezone.utc).isoformat(),

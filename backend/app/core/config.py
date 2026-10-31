@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # ── CORS ─────────────────────────────────────────────────────────
     cors_origins: List[str] = ["http://localhost:5173"]
 
+    # Local-first persistent application database confirmed by the project
+    # requirements document. Relative paths resolve from the backend folder.
+    database_path: str = "data/everwed.sqlite3"
+    database_busy_timeout_ms: int = 5000
+    session_ttl_minutes: int = 480
+    seed_demo_data_on_startup: bool = False
+
     # ── Timeouts ─────────────────────────────────────────────────────
     odoo_timeout: int = 10  # seconds for XML-RPC calls
 
