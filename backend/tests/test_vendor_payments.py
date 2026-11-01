@@ -173,3 +173,47 @@ def test_planner_created_wedding_is_assigned_and_immediately_accessible(client: 
     assert planner_client.get(f"/api/v1/weddings/{wedding['id']}").status_code == 200
     listed = planner_client.get("/api/v1/weddings").json()["data"]
     assert any(item["id"] == wedding["id"] for item in listed)
+
+
+def test_assigned_planner_can_record_client_payment_and_vendor_invoice(client: TestClient) -> None:
+    suffix = uuid.uuid4().hex[:10]
+    wedding_payload = _wedding_payload(f"ledger-{suffix}")
+    wedding_payload["package_fee"] = None
+    wedding = client.post("/api/v1/weddings", json=wedding_payload).json()["data"]
+    vendor_id = _vendor(client, f"ledger-{suffix}")
+    email = f"ledger-planner-{suffix}@example.com"
+    created = client.post("/api/v1/auth/users", json={
+        "name": "Ledger Planner", "email": email,
+        "password": "Ledger-Planner-8!", "role": "planner",
+    })
+    assert created.status_code == 201, created.text
+    assignment = client.post(
+        f"/api/v1/weddings/{wedding['id']}/planner-assignment",
+        json={"planner_email": email},
+    )
+    assert assignment.status_code == 200, assignment.text
+
+    planner = TestClient(client.app)
+    login = planner.post("/api/v1/auth/login", json={"username": email, "password": "Ledger-Planner-8!"})
+    assert login.status_code == 200, login.text
+    contract = planner.patch(f"/api/v1/weddings/{wedding['id']}", json={"package_fee": 120000})
+    assert contract.status_code == 200, contract.text
+    payment = planner.post("/api/v1/finance/client-payments", json={
+        "wedding_id": wedding["id"], "stage": "advance_payment", "amount": 25000,
+        "payment_method": "Bank Transfer", "transaction_reference": f"CLIENT-{suffix}",
+        "payment_date": "2027-08-05",
+    })
+    assert payment.status_code == 201, payment.text
+    payment_history = planner.get(f"/api/v1/finance/client-payments?wedding_id={wedding['id']}")
+    assert payment_history.status_code == 200, payment_history.text
+    assert payment_history.json()["data"][0]["amount"] == 25000
+
+    bill = planner.post("/api/v1/finance/vendor-bills", json={
+        "wedding_id": wedding["id"], "vendor_id": vendor_id,
+        "bill_number": f"PLANNER-INV-{suffix}", "agreed_amount": 70000,
+        "billed_amount": 70000, "bill_date": "2027-08-01", "due_date": "2027-08-20",
+    })
+    assert bill.status_code == 201, bill.text
+    listed_bills = planner.get(f"/api/v1/finance/vendor-bills?wedding_id={wedding['id']}")
+    assert listed_bills.status_code == 200, listed_bills.text
+    assert listed_bills.json()["data"][0]["bill_number"] == f"PLANNER-INV-{suffix}"

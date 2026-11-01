@@ -241,7 +241,7 @@ export const CoupleBudgetPage: React.FC = () => {
             ) : linkNeedsHelp ? (
               <p role="alert" className="max-w-sm rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">The payment provider’s response could not be confirmed. For your safety, a second link is blocked. Contact your Planner to reconcile this attempt.</p>
             ) : paymentConfigurationMissing ? (
-              <p role="alert" className="max-w-sm rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">Online checkout is not configured yet. Contact your Planner or Founder to arrange payment.</p>
+              <span className="text-sm font-medium text-amber-950">Online checkout unavailable</span>
             ) : (
               <button type="button" onClick={() => void createPaymentLink()} disabled={creatingLink} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-forest-900 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
                 {creatingLink ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Link2 className="h-4 w-4 shrink-0" />}{creatingLink ? "Creating secure link…" : "Create secure payment link"}

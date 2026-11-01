@@ -582,3 +582,12 @@ a foundation, not the complete wedding lifecycle requested in the master prompt.
   `npx tsc -b --pretty false` and Couple Budget lint passed; `git diff --check`
   passed. The unconfigured-provider test confirms the request returns 503 and
   saves no payment-link intent.
+- Follow-up verification: added an assigned-Planner workflow test that starts
+  without a contract, saves the agreed fee, records a client payment and
+  records/reads a vendor invoice. Full backend suite: **58 passed**, one
+  upstream Starlette/AnyIO deprecation warning. Frontend typecheck and targeted
+  Couple Budget lint passed.
+- The local backend environment contains none of the Razorpay variables, so
+  real checkout remains unavailable until the account owner configures them.
+  No contract values were inferred and no stored wedding/payment records were
+  modified during these tests.
