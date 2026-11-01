@@ -4,6 +4,11 @@ Updated: 2026-11-01 (Simplification, role portals and core workflow delivery)
 
 ## Latest reliability update (2026-11-01)
 
+- Fixed the Couple page blank/blurred state shown in the user screenshot. The
+  page entrance animation creates a containing block, which trapped fixed
+  dialogs inside the content region and centered them outside the viewport.
+  Shared dialogs now render through a document-level React portal above app
+  navigation, fixing guest/task and other modal forms consistently.
 - Couple guest and task saves now show API validation errors inside their open
   dialogs and prevent accidental repeated submissions. The shared modal no
   longer resets page scroll state when callback props rerender.
