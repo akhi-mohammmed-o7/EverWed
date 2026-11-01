@@ -18,6 +18,10 @@ Updated: 2026-11-01 (Simplification, role portals and core workflow delivery)
   Planner or Founder verifies the actual transfer reference. Planners can reject
   invalid reports; rejected reports remain in history and release the reserved
   balance. Online link creation is blocked while an offline report awaits review.
+- Removed online checkout and link history controls from Couple and Planner
+  finance screens. Planner Finance now explains the two offline flows directly:
+  confirmed money received from the couple, and vendor bills recorded before
+  actual payments are entered against each bill.
 - Added backend workflow coverage for couple task create/update and the offline
   report → Planner verification → recalculated balance path. Current checks:
   backend suite `60 passed`; frontend TypeScript build check passed; frontend

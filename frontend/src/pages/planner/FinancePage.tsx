@@ -26,7 +26,6 @@ import type {
   VendorBillCreate,
   VendorPaymentCreate,
   Vendor,
-  ClientPaymentLink,
 } from "@/types";
 import { formatINR, formatDate } from "@/lib/utils";
 import { PAYMENT_STAGES } from "@/lib/constants";
@@ -41,7 +40,6 @@ export const FinancePage: React.FC = () => {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [portfolio, setPortfolio] = useState<DashboardOverview | null>(null);
   const [clientPayments, setClientPayments] = useState<ClientPayment[]>([]);
-  const [clientPaymentLinks, setClientPaymentLinks] = useState<ClientPaymentLink[]>([]);
   const [vendorBills, setVendorBills] = useState<VendorBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<"summary" | "client" | "vendor">("client");
@@ -126,16 +124,7 @@ export const FinancePage: React.FC = () => {
       setClientPayments(cp);
       setVendorBills(vb);
 
-      // Supplementary dashboard/payment-link calls must not block the core
-      // ledger or leave its record buttons disabled when an optional service
-      // is unavailable.
-      void Promise.allSettled([
-        services.finance.listClientPaymentLinks(wid),
-        services.dashboard.getOverview(),
-      ]).then(([linksResult, portfolioResult]) => {
-        if (linksResult.status === "fulfilled") setClientPaymentLinks(linksResult.value);
-        if (portfolioResult.status === "fulfilled") setPortfolio(portfolioResult.value);
-      });
+      void services.dashboard.getOverview().then(setPortfolio).catch(() => undefined);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "Failed to load financial records");
@@ -285,7 +274,7 @@ export const FinancePage: React.FC = () => {
             Wedding Accounts, Bills & Profitability
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            See what couples have paid, what vendors are still owed and how each wedding is tracking. Every payment is saved as its own record.
+            Record offline client receipts and vendor invoices, then track what has been received, paid and remains outstanding.
           </p>
         </div>
 
@@ -314,7 +303,7 @@ export const FinancePage: React.FC = () => {
             setIsClientPaymentOpen(true);
           }}>
             <Plus className="w-3.5 h-3.5 mr-1 text-emerald-700" />
-            Client Payment
+            Record Client Receipt
           </Button>
 
           <Button variant="gold" size="sm" onClick={() => {
@@ -323,7 +312,7 @@ export const FinancePage: React.FC = () => {
             setIsVendorBillOpen(true);
           }} className="font-bold">
             <Plus className="w-3.5 h-3.5 mr-1" />
-            Record Vendor Invoice
+            Add Vendor Invoice
           </Button>
         </div>
       </div>
@@ -370,6 +359,17 @@ export const FinancePage: React.FC = () => {
           <div className="flex flex-col gap-1 border-b border-border pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div><h2 className="font-serif text-xl font-bold text-forest-900">Selected wedding</h2><p className="text-sm text-muted-foreground">Detailed contract, invoice and transaction history for this workspace.</p></div>
             <span className="text-sm font-semibold text-forest-700">{weddings.find((item) => item.id === selectedWid)?.title}</span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="border-emerald-200 bg-emerald-50/50 p-5">
+              <h3 className="font-serif text-base font-bold text-forest-900">Client receipts · money coming in</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">First save the agreed contract fee. When the couple reports an offline transfer, check your bank or receipt and choose <strong>Verify received</strong>. Use <strong>Record Client Receipt</strong> only for money you already confirmed outside EverWed. Pending reports do not count in the balance.</p>
+            </Card>
+            <Card className="border-amber-200 bg-amber-50/50 p-5">
+              <h3 className="font-serif text-base font-bold text-forest-900">Vendor invoices · money going out</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground"><strong>Add Vendor Invoice</strong> records what the vendor billed; it does not mean you paid them. After you send a real payment, open that invoice and choose <strong>Record payment</strong>. The invoice balance updates from its saved payment history.</p>
+            </Card>
           </div>
 
           {(summary.client_contract_missing || summary.client_overpayment_amount > 0) && <Card className="border-amber-200 bg-amber-50/70 p-5">
@@ -463,7 +463,7 @@ export const FinancePage: React.FC = () => {
                   : "border-transparent text-muted-foreground hover:text-forest-800"
               }`}
             >
-              All Vendor Invoices & Bills ({vendorBills.length})
+              Vendor invoices & payments ({vendorBills.length})
             </button>
             <button
               onClick={() => setActiveSection("client")}
@@ -473,7 +473,7 @@ export const FinancePage: React.FC = () => {
                   : "border-transparent text-muted-foreground hover:text-forest-800"
               }`}
             >
-              Client Payment Transactions ({clientPayments.length})
+              Client receipts ({clientPayments.length})
             </button>
           </div>
 
@@ -482,10 +482,8 @@ export const FinancePage: React.FC = () => {
             <Card className="p-0 overflow-hidden shadow-sm">
               <CardHeader className="bg-ivory-100/50">
                 <div>
-                  <h3 className="font-serif text-base font-bold text-forest-900">Recorded Vendor Invoices</h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    Invoices audited against agreed quotations. Variance explanations enforced.
-                  </p>
+                  <h3 className="font-serif text-base font-bold text-forest-900">Vendor invoices and payments</h3>
+                  <p className="text-[11px] text-muted-foreground">An invoice records the amount owed. Record a payment against it only after money has actually been sent to the vendor.</p>
                 </div>
               </CardHeader>
               <div className="overflow-x-auto">
@@ -504,6 +502,7 @@ export const FinancePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
+                    {vendorBills.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No vendor invoices yet. Choose “Add Vendor Invoice” after receiving an actual vendor bill.</td></tr>}
                     {vendorBills.map((bill) => (
                       <React.Fragment key={bill.id}><tr className="hover:bg-ivory-50/70 transition-colors">
                         <td className="py-3.5 px-4 font-mono font-bold text-forest-900">{bill.bill_number}</td>
@@ -546,7 +545,7 @@ export const FinancePage: React.FC = () => {
                                 setVendorPayForm({ bill_id: bill.id, amount: bill.outstanding_balance, payment_type: "final", payment_method: "Bank Transfer", transaction_reference: "", payment_date: new Date().toISOString().slice(0, 10), notes: "" });
                               }}
                             >
-                              Record payment
+                              Record vendor payment
                             </Button>
                           ) : (
                             <span className="text-emerald-700 text-xs font-bold flex items-center justify-end gap-1">
@@ -568,10 +567,8 @@ export const FinancePage: React.FC = () => {
             <Card className="p-0 overflow-hidden shadow-sm">
               <CardHeader className="bg-ivory-100/50">
                 <div>
-                  <h3 className="font-serif text-base font-bold text-forest-900">Client Inflow Vouchers</h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    Staged deposit and advance milestone payments received from couple/family.
-                  </p>
+                  <h3 className="font-serif text-base font-bold text-forest-900">Client payment history</h3>
+                  <p className="text-[11px] text-muted-foreground">Pending means the couple reported a transfer and it still needs checking. Verify only after you confirm the funds. Received means it is included in the paid total. “Record Client Receipt” is for funds you have already confirmed.</p>
                 </div>
               </CardHeader>
               <div className="overflow-x-auto">
@@ -589,6 +586,7 @@ export const FinancePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
+                    {clientPayments.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No client receipts or payment reports yet. Record a confirmed receipt or wait for the couple to submit an offline report.</td></tr>}
                     {clientPayments.map((p) => (
                       <tr key={p.id} className="hover:bg-ivory-50/70 transition-colors">
                         <td className="py-3.5 px-4 font-mono font-bold text-forest-900">{p.transaction_reference}</td>
@@ -611,10 +609,6 @@ export const FinancePage: React.FC = () => {
                 </table>
               </div>
             </Card>
-            <Card className="space-y-3 p-5">
-              <div><h3 className="font-serif text-base font-bold text-forest-900">Online payment links</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Payment links and confirmations for this wedding. Confirmed payments are added to the shared ledger automatically; you do not need to accept them. Status refreshes every few seconds.</p></div>
-              {clientPaymentLinks.length === 0 ? <p className="text-sm text-muted-foreground">The couple has not created a payment link yet.</p> : clientPaymentLinks.map((link) => <div key={link.id} className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold capitalize text-forest-900">{link.stage.replace(/_/g, " ")} · {link.status.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">Paid {formatINR(link.amount_paid)} of {formatINR(link.amount)} · Remaining {formatINR(link.amount_due)}</p></div>{link.short_url && <a href={link.short_url} target="_blank" rel="noreferrer" className="w-fit rounded-lg border border-forest-700 px-3 py-2 text-xs font-semibold text-forest-800">Open / share payment link</a>}</div>)}
-            </Card>
             </div>
           )}
         </div>
@@ -624,8 +618,8 @@ export const FinancePage: React.FC = () => {
       <Modal
         isOpen={isClientPaymentOpen}
         onClose={() => setIsClientPaymentOpen(false)}
-        title="Record Staged Client Payment"
-        subtitle="Log client milestone deposits, advances, or final settlements."
+        title="Record a client receipt"
+        subtitle="Use only after the payment has reached your account. For couple-submitted reports, verify the pending record instead to avoid duplicate receipts."
       >
         <form onSubmit={handleRecordClientPayment} className="space-y-3.5 text-xs">
           {clientPaymentError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{clientPaymentError}</p>}
@@ -668,7 +662,8 @@ export const FinancePage: React.FC = () => {
                 <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
                 <option value="Cheque">Account Payee Cheque</option>
                 <option value="UPI">UPI Transfer</option>
-                <option value="Card">Credit/Debit Card</option>
+                <option value="Cash">Cash</option>
+                <option value="Other">Other offline method</option>
               </select>
             </div>
             <div>
@@ -706,7 +701,7 @@ export const FinancePage: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" variant="gold" isLoading={savingClientPayment}>
-              Record Inflow
+              Save confirmed receipt
             </Button>
           </div>
         </form>
@@ -716,8 +711,8 @@ export const FinancePage: React.FC = () => {
       <Modal
         isOpen={isVendorBillOpen}
         onClose={() => setIsVendorBillOpen(false)}
-        title="Record Vendor Invoice & Bill"
-        subtitle="Mandatory rule: If invoiced amount > agreed quote price, an explicit variance reason must be entered."
+        title="Add a vendor invoice"
+        subtitle="This records the amount EverWed owes the vendor. It does not record a payment. If the billed total exceeds the agreed quote, explain the difference."
       >
         <form onSubmit={handleRecordVendorBill} className="space-y-3.5 text-xs">
           {vendorBillError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{vendorBillError}</p>}
@@ -821,7 +816,7 @@ export const FinancePage: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" variant="gold" isLoading={savingVendorBill} disabled={vendorsLoading || vendors.length === 0}>
-              Audit & Record Bill
+              Save vendor invoice
             </Button>
           </div>
         </form>
@@ -882,11 +877,11 @@ export const FinancePage: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label-base">Payment Method</label><select required className="input-base" value={vendorPayForm.payment_method} onChange={(e) => setVendorPayForm({ ...vendorPayForm, payment_method: e.target.value })}><option>Bank Transfer</option><option>Cheque</option><option>UPI</option><option>Cash</option><option>Card</option><option>Other</option></select></div>
+          <div><label className="label-base">Payment Method</label><select required className="input-base" value={vendorPayForm.payment_method} onChange={(e) => setVendorPayForm({ ...vendorPayForm, payment_method: e.target.value })}><option>Bank Transfer</option><option>Cheque</option><option>UPI</option><option>Cash</option><option>Other</option></select></div>
             <div><label className="label-base">Payment Date</label><input required type="date" className="input-base" value={vendorPayForm.payment_date} onChange={(e) => setVendorPayForm({ ...vendorPayForm, payment_date: e.target.value })} /></div>
           </div>
           <div><label className="label-base">Notes (optional)</label><textarea rows={2} maxLength={500} className="input-base" value={vendorPayForm.notes || ""} onChange={(e) => setVendorPayForm({ ...vendorPayForm, notes: e.target.value })} /></div>
-          <p className="text-[11px] text-muted-foreground">Enter the real bank confirmation, cheque, UPI, or receipt reference. Reusing a reference is rejected.</p>
+          <p className="text-[11px] text-muted-foreground">This records money already sent; it does not initiate a transfer. Enter the actual bank, cheque, UPI or receipt reference. Reusing a reference is rejected.</p>
           <div className="flex justify-end gap-2 pt-3">
             <Button type="button" variant="ghost" onClick={() => setPayBillTarget(null)}>
               Cancel

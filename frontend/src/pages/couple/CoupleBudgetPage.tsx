@@ -6,16 +6,13 @@ import {
   Receipt,
   Wallet,
   AlertCircle,
-  Link2,
   RefreshCw,
   Check,
-  ExternalLink,
 } from "lucide-react";
 import { Card, CardHeader, StatCard } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { services } from "@/services";
-import { APIError } from "@/services/api/client";
-import type { Wedding, ClientPayment, ClientPaymentLink } from "@/types";
+import type { Wedding, ClientPayment } from "@/types";
 import { formatINR, formatDate } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -23,16 +20,11 @@ export const CoupleBudgetPage: React.FC = () => {
   const { user } = useAuth();
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [payments, setPayments] = useState<ClientPayment[]>([]);
-  const [paymentLinks, setPaymentLinks] = useState<ClientPaymentLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [budgetInput, setBudgetInput] = useState("");
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [budgetMessage, setBudgetMessage] = useState("");
-  const [creatingLink, setCreatingLink] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState("");
-  const [paymentLinkError, setPaymentLinkError] = useState("");
-  const [paymentConfigurationMissing, setPaymentConfigurationMissing] = useState(false);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const [offlineMessage, setOfflineMessage] = useState("");
   const [offlineError, setOfflineError] = useState("");
@@ -56,14 +48,6 @@ export const CoupleBudgetPage: React.FC = () => {
         setWedding(details);
         setBudgetInput(String(details.budget_allocated));
         setPayments(list);
-        // Razorpay link history is optional. A provider/configuration error
-        // must not prevent the contract, balance and offline payment workflow
-        // from loading.
-        void services.finance.listClientPaymentLinks(weddingId).then((links) => {
-          if (mounted) setPaymentLinks(links);
-        }).catch(() => {
-          if (mounted) setPaymentLinks([]);
-        });
       } catch (cause) {
         if (mounted) setError(cause instanceof Error ? cause.message : "Unable to load your budget.");
       } finally {
@@ -99,29 +83,6 @@ export const CoupleBudgetPage: React.FC = () => {
     } finally {
       setIsSavingBudget(false);
     }
-  };
-
-  const createPaymentLink = async () => {
-    if (!wedding || !wedding.package_fee) return;
-    const paidSoFar = payments.filter((payment) => payment.status === "received" || payment.status === "verified").reduce((sum, payment) => sum + payment.amount, 0);
-    if (wedding.package_fee - paidSoFar <= 0) return;
-    setCreatingLink(true); setPaymentMessage(""); setPaymentLinkError(""); setPaymentConfigurationMissing(false); setError("");
-    try {
-      const requestId = globalThis.crypto?.randomUUID?.() ?? `everwed-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      const link = await services.finance.createClientPaymentLink({
-        wedding_id: wedding.id,
-        stage: paidSoFar === 0 ? "booking_deposit" : "advance_payment",
-      }, requestId);
-      setPaymentLinks((current) => [link, ...current.filter((item) => item.id !== link.id)]);
-      setPaymentMessage("Your secure Razorpay payment link is ready. Payment status updates after provider confirmation.");
-    } catch (cause) {
-      if (cause instanceof APIError && cause.code === "PAYMENTS_NOT_CONFIGURED") {
-        setPaymentConfigurationMissing(true);
-        setPaymentLinkError("Online payments are not configured for this EverWed deployment. A Founder/Admin must set the Razorpay API keys and webhook secret in the backend environment, then restart the backend. No payment was taken.");
-      } else {
-        setPaymentLinkError(cause instanceof Error ? cause.message : "Unable to create a secure payment link.");
-      }
-    } finally { setCreatingLink(false); }
   };
 
   const reportOfflinePayment = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -165,11 +126,6 @@ export const CoupleBudgetPage: React.FC = () => {
   const clientOutstanding = Math.max(0, contractValue - totalClientPaid);
   const offlineReportableBalance = Math.max(0, clientOutstanding - totalPendingClientReported);
   const hasContract = contractValue > 0;
-  const openPaymentLink = paymentLinks.find((link) =>
-    ["created", "partially_paid"].includes(link.status) && link.amount_due > 0 && Boolean(link.short_url)
-  );
-  const linkBeingPrepared = paymentLinks.some((link) => link.status === "creating");
-  const linkNeedsHelp = paymentLinks.some((link) => link.status === "creation_unknown");
   const paidPercent = hasContract
     ? Math.min(100, Math.round((totalClientPaid / contractValue) * 100))
     : 0;
@@ -234,17 +190,17 @@ export const CoupleBudgetPage: React.FC = () => {
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><CreditCard className="h-5 w-5" aria-hidden="true" /></span>
           <div>
-            <h2 className="font-serif text-lg font-bold leading-snug text-forest-900">Payment options</h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Payments use your agreed contract fee, separate from your editable wedding budget. Razorpay is available when configured; you can also report an offline payment below using the details shared by your Planner.</p>
+            <h2 className="font-serif text-lg font-bold leading-snug text-forest-900">Offline payment process</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Use the payment details provided by your Planner, then report the actual transfer here. EverWed records the details; it does not move money.</p>
           </div>
         </div>
 
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="How couple payments work">
           {[
             { title: "Agree the fee", detail: "Your Planner records the signed contract amount." },
-            { title: "Choose a method", detail: "Use Razorpay when enabled, or pay offline using your Planner’s instructions." },
+            { title: "Get payment details", detail: "Ask your Planner which account or payment method to use." },
             { title: "Share the reference", detail: "For offline payments, enter the actual UPI, bank or receipt reference below." },
-            { title: "See the update", detail: "Online payments post after provider confirmation; offline reports post after Planner verification." },
+            { title: "Planner verifies", detail: "Your balance updates after the Planner checks and confirms the funds." },
           ].map((step, index) => (
             <li key={step.title} className="rounded-xl border border-border bg-ivory-50 p-3.5">
               <div className="flex items-center gap-2.5">
@@ -257,7 +213,7 @@ export const CoupleBudgetPage: React.FC = () => {
         </ol>
 
         <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3.5 text-sm leading-relaxed text-sky-950">
-          <strong>Razorpay confirmation is automatic.</strong> Offline payment reports remain pending until the Planner checks the actual funds and verifies the record. Your balance only changes for confirmed receipts.
+          <strong>Reporting a payment does not confirm receipt.</strong> Reports remain pending until your Planner checks the actual funds. Your balance only changes after verification.
         </div>
 
         <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -265,32 +221,10 @@ export const CoupleBudgetPage: React.FC = () => {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current balance</p>
             <p className="mt-1 font-serif text-2xl font-bold text-forest-900">{hasContract ? formatINR(clientOutstanding) : "Fee not set"}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            {!hasContract ? (
-              <p className="max-w-sm rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">Your Planner needs to record the agreed contract fee first. This is contract setup, not a payment approval request.</p>
-            ) : clientOutstanding <= 0 ? (
-              <p className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-900"><Check className="h-4 w-4 shrink-0" />Your recorded contract balance is paid.</p>
-            ) : openPaymentLink ? (
-              <a href={openPaymentLink.short_url!} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-forest-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
-                <ExternalLink className="h-4 w-4 shrink-0" />Continue to payment
-              </a>
-            ) : linkBeingPrepared ? (
-              <span role="status" className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-950"><RefreshCw className="h-4 w-4 shrink-0 animate-spin" />Preparing your payment link…</span>
-            ) : linkNeedsHelp ? (
-              <p role="alert" className="max-w-sm rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">The payment provider’s response could not be confirmed. For your safety, a second link is blocked. Contact your Planner to reconcile this attempt.</p>
-            ) : paymentConfigurationMissing ? (
-              <span className="max-w-sm text-sm font-medium text-amber-950">Online checkout is unavailable. Use the offline report below after paying with your Planner’s instructions.</span>
-            ) : (
-              <button type="button" onClick={() => void createPaymentLink()} disabled={creatingLink} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-forest-900 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
-                {creatingLink ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Link2 className="h-4 w-4 shrink-0" />}{creatingLink ? "Creating secure link…" : "Create secure payment link"}
-              </button>
-            )}
+          <div className="max-w-lg text-sm leading-relaxed text-muted-foreground">
+            {!hasContract ? <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-amber-950">Your Planner must record the agreed contract amount before you can report a payment.</p> : clientOutstanding <= 0 ? <p className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 font-semibold text-emerald-900"><Check className="h-4 w-4 shrink-0" />The confirmed contract balance is paid.</p> : totalPendingClientReported > 0 && offlineReportableBalance <= 0 ? <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-amber-950">{formatINR(totalPendingClientReported)} is waiting for Planner verification.</p> : <p>Pay using the instructions from your Planner, then submit the transaction details below.</p>}
           </div>
         </div>
-        {paymentMessage && <p role="status" className="mt-3 text-sm text-emerald-800">{paymentMessage}</p>}
-        {paymentLinkError && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm leading-relaxed text-rose-900">{paymentLinkError}</p>}
-        {paymentLinks.length > 0 && <div className="space-y-2 border-t border-border pt-3"><h3 className="text-sm font-semibold text-forest-900">Payment link history</h3>{paymentLinks.map((link) => <div key={link.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold capitalize text-forest-900">{link.stage.replace(/_/g, " ")} · {link.status.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">Paid {formatINR(link.amount_paid)} of {formatINR(link.amount)} · Remaining {formatINR(link.amount_due)}</p></div>{openPaymentLink?.id === link.id && <span className="text-xs font-semibold text-emerald-800">Ready above</span>}</div>)}</div>}
-        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">EverWed does not store card or UPI credentials. Online payments are recorded after a signed provider confirmation; offline payments are recorded only after Planner verification.</p>
         <div className="mt-5 rounded-2xl border border-border bg-ivory-50 p-4 sm:p-5">
           <div className="flex items-start gap-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-forest-800"><Receipt className="h-4 w-4" /></span>
