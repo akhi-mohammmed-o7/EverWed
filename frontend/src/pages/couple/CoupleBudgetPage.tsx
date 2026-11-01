@@ -33,6 +33,10 @@ export const CoupleBudgetPage: React.FC = () => {
   const [paymentMessage, setPaymentMessage] = useState("");
   const [paymentLinkError, setPaymentLinkError] = useState("");
   const [paymentConfigurationMissing, setPaymentConfigurationMissing] = useState(false);
+  const [offlineBusy, setOfflineBusy] = useState(false);
+  const [offlineMessage, setOfflineMessage] = useState("");
+  const [offlineError, setOfflineError] = useState("");
+  const [offlineDraft, setOfflineDraft] = useState({ amount: "", payment_method: "UPI", transaction_reference: "", payment_date: new Date().toISOString().slice(0, 10), notes: "" });
 
   useEffect(() => {
     let mounted = true;
@@ -43,17 +47,23 @@ export const CoupleBudgetPage: React.FC = () => {
         return;
       }
       try {
-        const [details, list, links] = await Promise.all([
+        const [details, list] = await Promise.all([
           services.weddings.get(weddingId),
           services.finance.listClientPayments(weddingId),
-          services.finance.listClientPaymentLinks(weddingId),
         ]);
         if (!mounted) return;
         setError("");
         setWedding(details);
         setBudgetInput(String(details.budget_allocated));
         setPayments(list);
-        setPaymentLinks(links);
+        // Razorpay link history is optional. A provider/configuration error
+        // must not prevent the contract, balance and offline payment workflow
+        // from loading.
+        void services.finance.listClientPaymentLinks(weddingId).then((links) => {
+          if (mounted) setPaymentLinks(links);
+        }).catch(() => {
+          if (mounted) setPaymentLinks([]);
+        });
       } catch (cause) {
         if (mounted) setError(cause instanceof Error ? cause.message : "Unable to load your budget.");
       } finally {
@@ -114,6 +124,32 @@ export const CoupleBudgetPage: React.FC = () => {
     } finally { setCreatingLink(false); }
   };
 
+  const reportOfflinePayment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!wedding || !hasContract || !offlineDraft.transaction_reference.trim()) return;
+    setOfflineBusy(true);
+    setOfflineError("");
+    setOfflineMessage("");
+    try {
+      const record = await services.finance.reportOfflineClientPayment({
+        wedding_id: wedding.id,
+        stage: totalClientPaid === 0 ? "booking_deposit" : "advance_payment",
+        amount: Number(offlineDraft.amount),
+        payment_method: offlineDraft.payment_method,
+        transaction_reference: offlineDraft.transaction_reference.trim(),
+        payment_date: offlineDraft.payment_date,
+        notes: offlineDraft.notes.trim() || "Couple-reported offline payment; awaiting Planner verification.",
+      });
+      setPayments((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+      setOfflineDraft((current) => ({ ...current, amount: "", transaction_reference: "", notes: "" }));
+      setOfflineMessage("Payment details sent to your Planner for verification. Your balance updates after they confirm the received funds.");
+    } catch (cause) {
+      setOfflineError(cause instanceof Error ? cause.message : "Unable to send payment details for review.");
+    } finally {
+      setOfflineBusy(false);
+    }
+  };
+
   if (!wedding) {
     return (
       <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
@@ -125,7 +161,9 @@ export const CoupleBudgetPage: React.FC = () => {
 
   const contractValue = wedding.package_fee || 0;
   const totalClientPaid = payments.filter((payment) => payment.status === "received" || payment.status === "verified").reduce((sum, payment) => sum + payment.amount, 0);
+  const totalPendingClientReported = payments.filter((payment) => payment.status === "pending").reduce((sum, payment) => sum + payment.amount, 0);
   const clientOutstanding = Math.max(0, contractValue - totalClientPaid);
+  const offlineReportableBalance = Math.max(0, clientOutstanding - totalPendingClientReported);
   const hasContract = contractValue > 0;
   const openPaymentLink = paymentLinks.find((link) =>
     ["created", "partially_paid"].includes(link.status) && link.amount_due > 0 && Boolean(link.short_url)
@@ -196,17 +234,17 @@ export const CoupleBudgetPage: React.FC = () => {
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><CreditCard className="h-5 w-5" aria-hidden="true" /></span>
           <div>
-            <h2 className="font-serif text-lg font-bold leading-snug text-forest-900">Pay your agreed contract securely</h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Your payment is based on the agreed contract fee, separate from your editable wedding budget. Choose an available option on Razorpay’s secure checkout.</p>
+            <h2 className="font-serif text-lg font-bold leading-snug text-forest-900">Payment options</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Payments use your agreed contract fee, separate from your editable wedding budget. Razorpay is available when configured; you can also report an offline payment below using the details shared by your Planner.</p>
           </div>
         </div>
 
-        <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="How online payments work">
+        <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="How couple payments work">
           {[
-            { title: "Agree the fee", detail: "Your Planner records the contract amount." },
-            { title: "Open your link", detail: "Create one here, then continue to checkout." },
-            { title: "Choose how to pay", detail: "Use the methods available on Razorpay; pay in full or in part." },
-            { title: "See confirmation", detail: "A verified payment is saved and shared with your Planner." },
+            { title: "Agree the fee", detail: "Your Planner records the signed contract amount." },
+            { title: "Choose a method", detail: "Use Razorpay when enabled, or pay offline using your Planner’s instructions." },
+            { title: "Share the reference", detail: "For offline payments, enter the actual UPI, bank or receipt reference below." },
+            { title: "See the update", detail: "Online payments post after provider confirmation; offline reports post after Planner verification." },
           ].map((step, index) => (
             <li key={step.title} className="rounded-xl border border-border bg-ivory-50 p-3.5">
               <div className="flex items-center gap-2.5">
@@ -219,7 +257,7 @@ export const CoupleBudgetPage: React.FC = () => {
         </ol>
 
         <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3.5 text-sm leading-relaxed text-sky-950">
-          <strong>Online payments do not need Planner approval after checkout.</strong> Once Razorpay confirms a successful payment, it is recorded automatically and appears in both accounts. Your page refreshes payment status every few seconds.
+          <strong>Razorpay confirmation is automatic.</strong> Offline payment reports remain pending until the Planner checks the actual funds and verifies the record. Your balance only changes for confirmed receipts.
         </div>
 
         <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -241,7 +279,7 @@ export const CoupleBudgetPage: React.FC = () => {
             ) : linkNeedsHelp ? (
               <p role="alert" className="max-w-sm rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">The payment provider’s response could not be confirmed. For your safety, a second link is blocked. Contact your Planner to reconcile this attempt.</p>
             ) : paymentConfigurationMissing ? (
-              <span className="text-sm font-medium text-amber-950">Online checkout unavailable</span>
+              <span className="max-w-sm text-sm font-medium text-amber-950">Online checkout is unavailable. Use the offline report below after paying with your Planner’s instructions.</span>
             ) : (
               <button type="button" onClick={() => void createPaymentLink()} disabled={creatingLink} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-forest-900 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
                 {creatingLink ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Link2 className="h-4 w-4 shrink-0" />}{creatingLink ? "Creating secure link…" : "Create secure payment link"}
@@ -252,7 +290,21 @@ export const CoupleBudgetPage: React.FC = () => {
         {paymentMessage && <p role="status" className="mt-3 text-sm text-emerald-800">{paymentMessage}</p>}
         {paymentLinkError && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm leading-relaxed text-rose-900">{paymentLinkError}</p>}
         {paymentLinks.length > 0 && <div className="space-y-2 border-t border-border pt-3"><h3 className="text-sm font-semibold text-forest-900">Payment link history</h3>{paymentLinks.map((link) => <div key={link.id} className="flex flex-col gap-1.5 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold capitalize text-forest-900">{link.stage.replace(/_/g, " ")} · {link.status.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">Paid {formatINR(link.amount_paid)} of {formatINR(link.amount)} · Remaining {formatINR(link.amount_due)}</p></div>{openPaymentLink?.id === link.id && <span className="text-xs font-semibold text-emerald-800">Ready above</span>}</div>)}</div>}
-        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">EverWed does not store card or UPI credentials. The Planner sees a payment after Razorpay’s signed server notification is verified. If you pay by an offline method, share the receipt with your Planner so it can be recorded separately.</p>
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">EverWed does not store card or UPI credentials. Online payments are recorded after a signed provider confirmation; offline payments are recorded only after Planner verification.</p>
+        <div className="mt-5 rounded-2xl border border-border bg-ivory-50 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-forest-800"><Receipt className="h-4 w-4" /></span>
+            <div><h3 className="font-serif text-base font-bold text-forest-900">Paid by UPI, bank transfer, cash or cheque?</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Pay using the details your Planner shared, then submit the real transaction or receipt reference here. This only reports your payment; it does not transfer money or mark it received. Your Planner verifies it against their account statement.</p></div>
+          </div>
+          {!hasContract ? <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">Your Planner must save the agreed contract fee before a payment report can be submitted.</p> : offlineReportableBalance <= 0 ? <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-medium text-amber-950">{clientOutstanding <= 0 ? "The confirmed contract balance is fully paid." : `Your Planner is reviewing ${formatINR(totalPendingClientReported)} in reported payments. Please wait for verification before reporting another payment.`}</p> : <form onSubmit={(event) => void reportOfflinePayment(event)} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="label-base">Amount paid (INR)<input required type="number" min="0.01" max={offlineReportableBalance} step="0.01" value={offlineDraft.amount} onChange={(event) => setOfflineDraft({ ...offlineDraft, amount: event.target.value })} className="input-base mt-1" /></label>
+            <label className="label-base">Payment method<select value={offlineDraft.payment_method} onChange={(event) => setOfflineDraft({ ...offlineDraft, payment_method: event.target.value })} className="input-base mt-1"><option>UPI</option><option>Bank Transfer</option><option>Cash</option><option>Cheque</option><option>Other</option></select></label>
+            <label className="label-base">Payment date<input required type="date" value={offlineDraft.payment_date} onChange={(event) => setOfflineDraft({ ...offlineDraft, payment_date: event.target.value })} className="input-base mt-1" /></label>
+            <label className="label-base sm:col-span-2">Transaction / receipt reference<input required maxLength={120} placeholder="Enter the actual UPI, bank or receipt reference" value={offlineDraft.transaction_reference} onChange={(event) => setOfflineDraft({ ...offlineDraft, transaction_reference: event.target.value })} className="input-base mt-1" /></label>
+            <label className="label-base">Note (optional)<input maxLength={500} value={offlineDraft.notes} onChange={(event) => setOfflineDraft({ ...offlineDraft, notes: event.target.value })} className="input-base mt-1" /></label>
+            <div className="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center gap-3"><button type="submit" disabled={offlineBusy} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 py-2 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60">{offlineBusy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />}{offlineBusy ? "Sending for review…" : "Submit payment for verification"}</button>{offlineMessage && <p role="status" className="text-sm text-emerald-800">{offlineMessage}</p>}{offlineError && <p role="alert" className="text-sm text-rose-800">{offlineError}</p>}</div>
+          </form>}
+        </div>
       </Card>
 
       <Card className="p-5">

@@ -40,6 +40,39 @@ async def record_client_payment(
     return APIResponse(success=True, data=data)
 
 
+@router.post("/client-payment-reports", response_model=APIResponse[ClientPaymentResponse], status_code=status.HTTP_201_CREATED)
+async def report_offline_client_payment(
+    payload: ClientPaymentCreate,
+    current_user: dict = Depends(require_role("couple")),
+):
+    """Save a couple-reported offline transfer for planner verification; it is not counted as received yet."""
+    ensure_wedding_access(current_user, payload.wedding_id)
+    data = FinanceService.record_client_payment(payload, status="pending")
+    return APIResponse(success=True, data=data)
+
+
+@router.post("/client-payments/{payment_id}/verify", response_model=APIResponse[ClientPaymentResponse])
+async def verify_client_payment(
+    payment_id: str,
+    current_user: dict = Depends(require_role("admin", "planner", "finance")),
+):
+    payment = FinanceService.get_client_payment(payment_id)
+    ensure_wedding_access(current_user, payment["wedding_id"])
+    data = FinanceService.verify_client_payment(payment_id)
+    return APIResponse(success=True, data=data)
+
+
+@router.post("/client-payments/{payment_id}/reject", response_model=APIResponse[ClientPaymentResponse])
+async def reject_client_payment(
+    payment_id: str,
+    current_user: dict = Depends(require_role("admin", "planner", "finance")),
+):
+    payment = FinanceService.get_client_payment(payment_id)
+    ensure_wedding_access(current_user, payment["wedding_id"])
+    data = FinanceService.reject_client_payment(payment_id)
+    return APIResponse(success=True, data=data)
+
+
 @router.get("/client-payments", response_model=APIResponse[List[ClientPaymentResponse]])
 async def list_client_payments(
     wedding_id: str = Query(..., description="Wedding ID"),

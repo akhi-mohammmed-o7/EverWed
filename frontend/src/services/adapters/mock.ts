@@ -1393,6 +1393,31 @@ export const mockAdapter: ServiceAdapter = {
       _weddings = _weddings.map((item) => item.id === wedding.id ? wedding : item);
       return p;
     },
+    async reportOfflineClientPayment(payload) {
+      await delay();
+      const wedding = _weddings.find((item) => item.id === payload.wedding_id);
+      if (!wedding) throw new Error(`Wedding '${payload.wedding_id}' not found`);
+      const duplicate = _clientPayments.find((p) => p.transaction_reference.trim().toLowerCase() === payload.transaction_reference.trim().toLowerCase());
+      if (duplicate) throw new Error(`Payment with transaction reference '${payload.transaction_reference}' already recorded`);
+      const record: ClientPayment = { id: generateId("pay-client"), ...payload, payment_method: payload.payment_method ?? "Bank Transfer", status: "pending", created_at: new Date().toISOString() };
+      _clientPayments = [record, ..._clientPayments];
+      return record;
+    },
+    async verifyClientPayment(paymentId) {
+      await delay();
+      const payment = _clientPayments.find((item) => item.id === paymentId);
+      if (!payment) throw new Error(`Client payment '${paymentId}' not found`);
+      payment.status = "received";
+      return payment;
+    },
+    async rejectClientPayment(paymentId) {
+      await delay();
+      const payment = _clientPayments.find((item) => item.id === paymentId);
+      if (!payment) throw new Error(`Client payment '${paymentId}' not found`);
+      payment.status = "failed";
+      payment.notes = `${payment.notes || ""} [Planner rejected this reported payment; no funds were recorded.]`.trim();
+      return payment;
+    },
     async listVendorBills(weddingId) {
       await delay();
       return _vendorBills.filter((b) => b.wedding_id === weddingId);

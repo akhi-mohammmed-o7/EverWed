@@ -2,6 +2,22 @@
 
 Updated: 2026-11-01 (Simplification, role portals and core workflow delivery)
 
+## Latest reliability update (2026-11-01)
+
+- Couple guest and task saves now show API validation errors inside their open
+  dialogs and prevent accidental repeated submissions. The shared modal no
+  longer resets page scroll state when callback props rerender.
+- Added a manual/offline client payment report path for deployments without
+  Razorpay. Couple submissions are persisted as `pending`, reserved against
+  duplicate/overpayment, and excluded from receipts/balances until an assigned
+  Planner or Founder verifies the actual transfer reference. Planners can reject
+  invalid reports; rejected reports remain in history and release the reserved
+  balance. Online link creation is blocked while an offline report awaits review.
+- Added backend workflow coverage for couple task create/update and the offline
+  report → Planner verification → recalculated balance path. Current checks:
+  backend suite `60 passed`; frontend TypeScript build check passed; frontend
+  Oxlint completed with existing project-wide warnings.
+
 ## Current phase
 
 Persistent backend and secure local authentication are implemented. Booking

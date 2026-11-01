@@ -102,6 +102,16 @@ class PaymentService:
                 payment for payment in store.client_payments.values()
                 if payment.get("wedding_id") == wedding_id and payment.get("status") in {"received", "verified"}
             ), "amount")
+            pending_offline_paise = sum_paise((
+                payment for payment in store.client_payments.values()
+                if payment.get("wedding_id") == wedding_id and payment.get("status") == "pending"
+            ), "amount")
+            if pending_offline_paise:
+                raise RoyalKnotException(
+                    status_code=409,
+                    detail="A couple-reported offline payment is awaiting Planner verification. Review it before creating an online link.",
+                    error_code="PENDING_OFFLINE_PAYMENT_REVIEW",
+                )
             outstanding_paise = max(0, to_paise(package_fee) - paid_paise)
             if outstanding_paise <= 0:
                 raise RoyalKnotException(status_code=409, detail="The recorded contract balance is already paid.", error_code="CONTRACT_ALREADY_PAID")

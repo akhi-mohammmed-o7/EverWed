@@ -30,6 +30,13 @@ logger = logging.getLogger("royal_knot.finance_service")
 
 class FinanceService:
     @staticmethod
+    def get_client_payment(payment_id: str) -> dict:
+        payment = store.client_payments.get(payment_id)
+        if not payment:
+            raise OdooRecordNotFound(detail=f"Client payment '{payment_id}' not found")
+        return payment
+
+    @staticmethod
     def get_vendor_bill(bill_id: str) -> dict:
         bill = store.vendor_bills.get(bill_id)
         if not bill:
@@ -37,7 +44,9 @@ class FinanceService:
         return bill
 
     @staticmethod
-    def record_client_payment(payload: ClientPaymentCreate) -> ClientPaymentResponse:
+    def record_client_payment(payload: ClientPaymentCreate, *, status: str = "received") -> ClientPaymentResponse:
+        if status not in {"pending", "received"}:
+            raise ValueError("Client payment status must be pending or received")
         pay_id = f"pay-client-{uuid.uuid4().hex}"
         now = datetime.now(timezone.utc)
         with store.transaction(immediate=True):
@@ -67,8 +76,14 @@ class FinanceService:
                  and payment.get("status") in {"received", "verified"}),
                 "amount",
             )
+            reserved_paise = sum_paise(
+                (payment for payment in store.client_payments.values()
+                 if payment.get("wedding_id") == payload.wedding_id
+                 and payment.get("status") == "pending"),
+                "amount",
+            )
             amount_paise = to_paise(payload.amount)
-            remaining_paise = max(0, contract_paise - received_paise)
+            remaining_paise = max(0, contract_paise - received_paise - reserved_paise)
             if amount_paise > remaining_paise:
                 raise RoyalKnotException(
                     status_code=400,
@@ -99,7 +114,7 @@ class FinanceService:
                 "payment_method": payload.payment_method,
                 "transaction_reference": payload.transaction_reference,
                 "payment_date": payload.payment_date,
-                "status": "received",
+                "status": status,
                 "notes": payload.notes,
                 "odoo_payment_id": None,
                 "created_at": now,
@@ -114,7 +129,7 @@ class FinanceService:
 
         # Odoo remains an optional best-effort sync after the local transaction commits.
         settings = get_settings()
-        if settings.odoo_configured and wedding.get("odoo_partner_id"):
+        if status == "received" and settings.odoo_configured and wedding.get("odoo_partner_id"):
             try:
                 client = get_odoo_client()
                 client.authenticate()
@@ -132,6 +147,52 @@ class FinanceService:
                 logger.warning("Could not sync client payment to Odoo: %s", exc)
 
         return ClientPaymentResponse(**data)
+
+    @staticmethod
+    def verify_client_payment(payment_id: str) -> ClientPaymentResponse:
+        with store.transaction(immediate=True):
+            payment = store.client_payments.get(payment_id)
+            if not payment:
+                raise OdooRecordNotFound(detail=f"Client payment '{payment_id}' not found")
+            if payment.get("status") in {"received", "verified"}:
+                return ClientPaymentResponse(**payment)
+            if payment.get("status") != "pending":
+                raise RoyalKnotException(status_code=409, detail="Only a pending offline payment report can be verified.", error_code="CLIENT_PAYMENT_NOT_PENDING")
+            wedding = store.weddings.get(payment["wedding_id"])
+            if not wedding:
+                raise OdooRecordNotFound(detail=f"Wedding '{payment['wedding_id']}' does not exist")
+            contract_paise = to_paise(wedding.get("package_fee") or 0)
+            paid_paise = sum_paise(
+                (item for item in store.client_payments.values()
+                 if item.get("wedding_id") == payment["wedding_id"]
+                 and item.get("status") in {"received", "verified"}),
+                "amount",
+            )
+            if to_paise(payment["amount"]) > max(0, contract_paise - paid_paise):
+                raise RoyalKnotException(status_code=409, detail="This payment would exceed the remaining contract balance. Reconcile the contract or payment records first.", error_code="CLIENT_OVERPAYMENT_PROHIBITED")
+            payment["status"] = "received"
+            payment["verified_at"] = datetime.now(timezone.utc)
+            store.client_payments[payment_id] = payment
+            if payment.get("stage") == "booking_deposit":
+                wedding["status"] = "confirmed"
+                wedding["updated_at"] = datetime.now(timezone.utc)
+                store.weddings[payment["wedding_id"]] = wedding
+                generate_standard_plan(payment["wedding_id"])
+            return ClientPaymentResponse(**payment)
+
+    @staticmethod
+    def reject_client_payment(payment_id: str) -> ClientPaymentResponse:
+        with store.transaction(immediate=True):
+            payment = store.client_payments.get(payment_id)
+            if not payment:
+                raise OdooRecordNotFound(detail=f"Client payment '{payment_id}' not found")
+            if payment.get("status") != "pending":
+                raise RoyalKnotException(status_code=409, detail="Only a pending offline payment report can be rejected.", error_code="CLIENT_PAYMENT_NOT_PENDING")
+            payment["status"] = "failed"
+            payment["notes"] = f"{payment.get('notes') or ''} [Planner rejected this reported payment; no funds were recorded.]".strip()
+            payment["updated_at"] = datetime.now(timezone.utc)
+            store.client_payments[payment_id] = payment
+            return ClientPaymentResponse(**payment)
 
     @staticmethod
     def list_client_payments(wedding_id: str) -> List[ClientPaymentResponse]:

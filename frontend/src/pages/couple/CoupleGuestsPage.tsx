@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Users,
   Plus,
@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Upload,
 } from "lucide-react";
-import { Card, CardHeader, CardContent, StatCard } from "@/components/ui/Card";
+import { Card, StatCard } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -32,6 +32,8 @@ export const CoupleGuestsPage: React.FC = () => {
   const [sideFilter, setSideFilter] = useState<string>("all");
   const [rsvpFilter, setRsvpFilter] = useState<string>("all");
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [savingGuest, setSavingGuest] = useState(false);
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importMessage, setImportMessage] = useState("");
@@ -53,7 +55,7 @@ export const CoupleGuestsPage: React.FC = () => {
     notes: "",
   });
 
-  const loadGuests = async () => {
+  const loadGuests = useCallback(async () => {
     const weddingId = user?.wedding_id;
     if (!weddingId) {
       setGuests([]);
@@ -69,12 +71,12 @@ export const CoupleGuestsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.wedding_id]);
 
   useEffect(() => {
-    loadGuests();
+    void loadGuests();
     if (user?.wedding_id) services.weddings.get(user.wedding_id).then(setWedding).catch((error) => console.error("Unable to load wedding estimate:", error));
-  }, [user?.wedding_id]);
+  }, [loadGuests, user?.wedding_id]);
 
   const resetGuestForm = () => {
     setEditingGuestId(null);
@@ -95,12 +97,15 @@ export const CoupleGuestsPage: React.FC = () => {
 
   const handleAddGuest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingGuest) return;
     if (!newGuest.name.trim()) return;
     if (!user?.wedding_id) {
       setError("Your wedding workspace is not ready yet.");
       return;
     }
     setError("");
+    setFormError("");
+    setSavingGuest(true);
     try {
       if (editingGuestId) {
         await services.guests.update(editingGuestId, {
@@ -122,7 +127,11 @@ export const CoupleGuestsPage: React.FC = () => {
       resetGuestForm();
       await loadGuests();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save this guest.");
+      const message = cause instanceof Error ? cause.message : "Unable to save this guest.";
+      setFormError(message);
+      setError(message);
+    } finally {
+      setSavingGuest(false);
     }
   };
 
@@ -156,6 +165,7 @@ export const CoupleGuestsPage: React.FC = () => {
     resetGuestForm();
     setIsAddModalOpen(true);
     setError("");
+    setFormError("");
   };
 
   const openEditGuest = (guest: Guest) => {
@@ -175,6 +185,7 @@ export const CoupleGuestsPage: React.FC = () => {
     });
     setIsAddModalOpen(true);
     setError("");
+    setFormError("");
   };
 
   const handleDelete = async (id: string) => {
@@ -413,6 +424,7 @@ export const CoupleGuestsPage: React.FC = () => {
         subtitle="Record contact details, RSVP, meal choice, and table seating."
       >
         <form onSubmit={handleAddGuest} className="space-y-3.5 text-xs">
+          {formError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{formError}</p>}
           <div>
             <label className="label-base">Guest Full Name</label>
             <input
@@ -522,10 +534,10 @@ export const CoupleGuestsPage: React.FC = () => {
             </label>
           </div>
           <div className="flex justify-end gap-2 pt-3">
-            <Button type="button" variant="ghost" onClick={() => { setIsAddModalOpen(false); resetGuestForm(); }}>
+            <Button type="button" variant="ghost" disabled={savingGuest} onClick={() => { setIsAddModalOpen(false); resetGuestForm(); }}>
               Cancel
             </Button>
-            <Button type="submit" variant="gold">
+            <Button type="submit" variant="gold" isLoading={savingGuest}>
               {editingGuestId ? "Save changes" : "Save guest"}
             </Button>
           </div>

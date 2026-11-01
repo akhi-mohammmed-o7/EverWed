@@ -136,6 +136,9 @@ export interface FinanceService {
   listClientPaymentLinks(weddingId: string): Promise<ClientPaymentLink[]>;
   createClientPaymentLink(payload: { wedding_id: string; stage: string }, requestId: string): Promise<ClientPaymentLink>;
   recordClientPayment(payload: ClientPaymentCreate): Promise<ClientPayment>;
+  reportOfflineClientPayment(payload: ClientPaymentCreate): Promise<ClientPayment>;
+  verifyClientPayment(paymentId: string): Promise<ClientPayment>;
+  rejectClientPayment(paymentId: string): Promise<ClientPayment>;
   listVendorBills(weddingId: string): Promise<VendorBill[]>;
   recordVendorBill(payload: VendorBillCreate): Promise<VendorBill>;
   recordVendorPayment(payload: VendorPaymentCreate): Promise<VendorPayment>;

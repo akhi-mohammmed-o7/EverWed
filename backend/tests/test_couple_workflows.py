@@ -359,6 +359,72 @@ def test_guests_can_be_added_updated_and_deleted(client: TestClient) -> None:
     assert couple.get(f"/api/v1/weddings/{wedding_id}/guests").json()["data"] == []
 
 
+def test_couple_offline_payment_report_waits_for_planner_verification(client: TestClient) -> None:
+    couple, _ = _new_couple()
+    wedding_id = _onboard(couple)
+    saved = client.patch(f"/api/v1/weddings/{wedding_id}", json={"package_fee": 250000})
+    assert saved.status_code == 200, saved.text
+    payload = {
+        "wedding_id": wedding_id,
+        "stage": "booking_deposit",
+        "amount": 50000,
+        "payment_method": "UPI",
+        "transaction_reference": f"UPI-REPORT-{uuid.uuid4().hex[:10]}",
+        "payment_date": "2026-11-01",
+        "notes": "Paid from the couple's UPI account.",
+    }
+    reported = couple.post("/api/v1/finance/client-payment-reports", json=payload)
+    assert reported.status_code == 201, reported.text
+    payment = reported.json()["data"]
+    assert payment["status"] == "pending"
+    assert client.get(f"/api/v1/finance/weddings/{wedding_id}/summary").json()["data"]["client_paid_amount"] == 0
+    assert couple.get(f"/api/v1/finance/client-payments?wedding_id={wedding_id}").json()["data"][0]["status"] == "pending"
+    assert couple.post("/api/v1/finance/client-payments", json=payload).status_code == 403
+
+    verified = client.post(f"/api/v1/finance/client-payments/{payment['id']}/verify", json={})
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["data"]["status"] == "received"
+    summary = client.get(f"/api/v1/finance/weddings/{wedding_id}/summary").json()["data"]
+    assert summary["client_paid_amount"] == 50000
+    assert summary["client_outstanding_receivable"] == 200000
+    duplicate_verify = client.post(f"/api/v1/finance/client-payments/{payment['id']}/verify", json={})
+    assert duplicate_verify.status_code == 200
+    second_report = couple.post("/api/v1/finance/client-payment-reports", json={
+        **payload,
+        "amount": 25000,
+        "transaction_reference": f"UPI-REPORT-REJECT-{uuid.uuid4().hex[:8]}",
+    })
+    assert second_report.status_code == 201, second_report.text
+    rejected = client.post(f"/api/v1/finance/client-payments/{second_report.json()['data']['id']}/reject", json={})
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["data"]["status"] == "failed"
+    retry_report = couple.post("/api/v1/finance/client-payment-reports", json={
+        **payload,
+        "amount": 25000,
+        "transaction_reference": f"UPI-REPORT-RETRY-{uuid.uuid4().hex[:8]}",
+    })
+    assert retry_report.status_code == 201, retry_report.text
+
+
+def test_task_create_and_update_api_persists_custom_checklist_item(client: TestClient) -> None:
+    couple, _ = _new_couple()
+    wedding_id = _onboard(couple)
+    created = couple.post(f"/api/v1/weddings/{wedding_id}/tasks", json={
+        "title": "Confirm guest transport",
+        "category": "Logistics",
+        "owner": "Couple",
+        "due_date": "2027-02-01",
+        "priority": "high",
+        "notes": "Coordinate shuttle timing.",
+    })
+    assert created.status_code == 201, created.text
+    task = created.json()["data"]
+    assert task["owner"] == "Aarav Test & Meera Test"
+    updated = couple.patch(f"/api/v1/tasks/{task['id']}", json={"status": "done"})
+    assert updated.status_code == 200, updated.text
+    assert next(item for item in couple.get(f"/api/v1/weddings/{wedding_id}/tasks").json()["data"] if item["id"] == task["id"])["status"] == "done"
+
+
 def test_guest_csv_import_validates_and_skips_duplicates(client: TestClient) -> None:
     couple, _ = _new_couple()
     wedding_id = _onboard(couple)

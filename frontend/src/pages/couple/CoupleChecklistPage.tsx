@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { services } from "@/services";
 import type { Task } from "@/types";
@@ -34,13 +34,14 @@ export const CoupleChecklistPage: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TaskDraft>(emptyDraft());
   const [isSaving, setIsSaving] = useState(false);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     const weddingId = user?.wedding_id;
     if (!weddingId) {
       setTasks([]);
@@ -55,12 +56,11 @@ export const CoupleChecklistPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.wedding_id]);
 
   useEffect(() => {
     void loadTasks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.wedding_id]);
+  }, [loadTasks]);
 
   const handleToggle = async (task: Task) => {
     setSavingTaskId(task.id);
@@ -80,6 +80,7 @@ export const CoupleChecklistPage: React.FC = () => {
     setDraft(emptyDraft());
     setIsModalOpen(true);
     setError("");
+    setFormError("");
   };
 
   const openEdit = (task: Task) => {
@@ -93,13 +94,16 @@ export const CoupleChecklistPage: React.FC = () => {
     });
     setIsModalOpen(true);
     setError("");
+    setFormError("");
   };
 
   const saveTask = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSaving) return;
     if (!user?.wedding_id || !draft.title.trim()) return;
     setIsSaving(true);
     setError("");
+    setFormError("");
     try {
       if (editingTaskId) {
         await services.tasks.update(editingTaskId, {
@@ -124,7 +128,9 @@ export const CoupleChecklistPage: React.FC = () => {
       setDraft(emptyDraft());
       await loadTasks();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save this task.");
+      const message = cause instanceof Error ? cause.message : "Unable to save this task.";
+      setFormError(message);
+      setError(message);
     } finally {
       setIsSaving(false);
     }
@@ -251,6 +257,7 @@ export const CoupleChecklistPage: React.FC = () => {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingTaskId ? "Edit checklist task" : "Add checklist task"}>
         <form onSubmit={saveTask} className="space-y-3.5 text-xs">
+          {formError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{formError}</p>}
           <label className="label-base">Task title
             <input required maxLength={200} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="input-base mt-1" />
           </label>
@@ -276,7 +283,7 @@ export const CoupleChecklistPage: React.FC = () => {
             <textarea rows={2} maxLength={2000} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} className="input-base mt-1" />
           </label>
           <div className="flex justify-end gap-2 border-t border-border pt-3">
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" disabled={isSaving} onClick={() => setIsModalOpen(false)}>Cancel</Button>
             <Button type="submit" variant="gold" isLoading={isSaving}>{editingTaskId ? "Save changes" : "Add task"}</Button>
           </div>
         </form>

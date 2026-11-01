@@ -48,6 +48,7 @@ export const FinancePage: React.FC = () => {
   const [contractInput, setContractInput] = useState("");
   const [savingContract, setSavingContract] = useState(false);
   const [savingClientPayment, setSavingClientPayment] = useState(false);
+  const [verifyingClientPaymentId, setVerifyingClientPaymentId] = useState<string | null>(null);
   const [savingVendorBill, setSavingVendorBill] = useState(false);
   const [clientPaymentError, setClientPaymentError] = useState<string | null>(null);
   const [vendorBillError, setVendorBillError] = useState<string | null>(null);
@@ -235,6 +236,37 @@ export const FinancePage: React.FC = () => {
       loadFinanceData(selectedWid);
     } catch (err: any) {
       setErrorMsg(err.message || "Payment rejected by financial control rules");
+    }
+  };
+
+  const verifyClientPayment = async (paymentId: string) => {
+    setVerifyingClientPaymentId(paymentId);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await services.finance.verifyClientPayment(paymentId);
+      await loadFinanceData(selectedWid);
+      setSuccessMsg("Offline payment verified and added to received funds.");
+    } catch (cause) {
+      setErrorMsg(cause instanceof Error ? cause.message : "Unable to verify this payment report.");
+    } finally {
+      setVerifyingClientPaymentId(null);
+    }
+  };
+
+  const rejectClientPayment = async (paymentId: string) => {
+    if (!window.confirm("Reject this reported payment? It will not count as money received, and the couple can submit a corrected report.")) return;
+    setVerifyingClientPaymentId(paymentId);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      await services.finance.rejectClientPayment(paymentId);
+      await loadFinanceData(selectedWid);
+      setSuccessMsg("Payment report rejected. It remains in history and no money was recorded.");
+    } catch (cause) {
+      setErrorMsg(cause instanceof Error ? cause.message : "Unable to reject this payment report.");
+    } finally {
+      setVerifyingClientPaymentId(null);
     }
   };
 
@@ -553,6 +585,7 @@ export const FinancePage: React.FC = () => {
                       <th className="py-3 px-4">Received Date</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Notes</th>
+                      <th className="py-3 px-4 text-right">Review</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
@@ -571,6 +604,7 @@ export const FinancePage: React.FC = () => {
                           <Badge status={p.status} />
                         </td>
                         <td className="py-3.5 px-4 text-muted-foreground italic">{p.notes || "-"}</td>
+                        <td className="py-3.5 px-4 text-right">{p.status === "pending" ? <div className="inline-flex items-center gap-2"><Button type="button" size="sm" variant="gold" disabled={verifyingClientPaymentId === p.id} onClick={() => void verifyClientPayment(p.id)}>{verifyingClientPaymentId === p.id ? "Saving…" : "Verify received"}</Button><button type="button" className="text-xs font-semibold text-rose-700 hover:underline disabled:opacity-50" disabled={verifyingClientPaymentId === p.id} onClick={() => void rejectClientPayment(p.id)}>Reject</button></div> : p.status === "received" && p.notes?.includes("Couple-reported offline payment") ? <span className="text-xs font-medium text-emerald-800">Verified</span> : <span className="text-xs text-muted-foreground">—</span>}</td>
                       </tr>
                     ))}
                   </tbody>

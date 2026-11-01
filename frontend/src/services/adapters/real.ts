@@ -172,6 +172,12 @@ export const realAdapter: ServiceAdapter = {
       apiClient.post<ClientPaymentLink>("/api/v1/finance/client-payment-links", payload, { "Idempotency-Key": requestId }),
     recordClientPayment: (payload: ClientPaymentCreate) =>
       apiClient.post<ClientPayment>("/api/v1/finance/client-payments", payload),
+    reportOfflineClientPayment: (payload: ClientPaymentCreate) =>
+      apiClient.post<ClientPayment>("/api/v1/finance/client-payment-reports", payload),
+    verifyClientPayment: (paymentId: string) =>
+      apiClient.post<ClientPayment>(`/api/v1/finance/client-payments/${paymentId}/verify`, {}),
+    rejectClientPayment: (paymentId: string) =>
+      apiClient.post<ClientPayment>(`/api/v1/finance/client-payments/${paymentId}/reject`, {}),
     listVendorBills: (weddingId) =>
       apiClient.get<VendorBill[]>(`/api/v1/finance/vendor-bills?wedding_id=${weddingId}`),
     recordVendorBill: (payload: VendorBillCreate) =>
