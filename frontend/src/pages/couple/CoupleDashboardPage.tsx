@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { services } from "@/services";
 import type { Wedding, WeddingEvent, Task } from "@/types";
+import type { PlannerDirectoryEntry } from "@/types";
 import { formatINR, formatDate, daysUntil } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -26,6 +27,11 @@ export const CoupleDashboardPage: React.FC = () => {
   const [wedding, setWedding] = useState<Wedding | null>(null);
   const [events, setEvents] = useState<WeddingEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [planners, setPlanners] = useState<PlannerDirectoryEntry[]>([]);
+  const [plannerUid, setPlannerUid] = useState("");
+  const [assigningPlanner, setAssigningPlanner] = useState(false);
+  const [plannerMessage, setPlannerMessage] = useState("");
+  const [plannerError, setPlannerError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -57,6 +63,13 @@ export const CoupleDashboardPage: React.FC = () => {
     };
   }, [user?.wedding_id]);
 
+  useEffect(() => {
+    let mounted = true;
+    void services.weddings.listPlanners().then((items) => { if (mounted) setPlanners(items); })
+      .catch((cause: unknown) => { if (mounted) setPlannerError(cause instanceof Error ? cause.message : "Unable to load planner options."); });
+    return () => { mounted = false; };
+  }, []);
+
   const toggleTask = async (task: Task) => {
     if (!wedding) return;
     setError("");
@@ -66,6 +79,17 @@ export const CoupleDashboardPage: React.FC = () => {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save this checklist change.");
     }
+  };
+
+  const selectPlanner = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!wedding || !plannerUid) return;
+    setAssigningPlanner(true); setPlannerError(""); setPlannerMessage("");
+    try {
+      const updated = await services.weddings.selectPlanner(wedding.id, Number(plannerUid));
+      setWedding(updated); setPlannerUid(""); setPlannerMessage(`${updated.assigned_planner_name || "Your planner"} is now connected to this wedding workspace.`);
+    } catch (cause) { setPlannerError(cause instanceof Error ? cause.message : "Unable to select this planner."); }
+    finally { setAssigningPlanner(false); }
   };
 
   if (isLoading) {
@@ -139,6 +163,13 @@ export const CoupleDashboardPage: React.FC = () => {
           icon={<DollarSign className="w-5 h-5 text-emerald-700" />}
         />
       </div>
+
+      <Card className="space-y-4 p-5">
+        <div><h2 className="font-serif text-lg font-bold text-forest-900">Your connected wedding planner</h2><p className="mt-1 text-sm text-muted-foreground">Your wedding, ceremonies, checklist and confirmed payments are shared with this planner from the same saved workspace.</p></div>
+        {wedding.assigned_planner_name ? <p className="text-sm font-semibold text-forest-900">{wedding.assigned_planner_name}{wedding.assigned_planner_email ? <span className="ml-2 font-normal text-muted-foreground">{wedding.assigned_planner_email}</span> : null}</p> : <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">No active Planner is assigned yet. Your wedding will be assigned when an approved Planner becomes available.</p>}
+        {planners.length > 0 && <form onSubmit={selectPlanner} className="flex flex-col gap-2 sm:flex-row"><select aria-label="Choose a wedding planner" required value={plannerUid} onChange={(event) => setPlannerUid(event.target.value)} className="input-base flex-1"><option value="">Choose a Planner</option>{planners.map((planner) => <option key={planner.uid} value={planner.uid}>{planner.name}{planner.specialties.length ? ` · ${planner.specialties.join(", ")}` : ""}</option>)}</select><button disabled={assigningPlanner || !plannerUid} className="rounded-lg bg-forest-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{assigningPlanner ? "Connecting…" : wedding.assigned_planner_name ? "Change planner" : "Connect planner"}</button></form>}
+        {plannerMessage && <p role="status" className="text-sm text-emerald-800">{plannerMessage}</p>}{plannerError && <p role="alert" className="text-sm text-rose-800">{plannerError}</p>}
+      </Card>
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">{error}</div>}
 

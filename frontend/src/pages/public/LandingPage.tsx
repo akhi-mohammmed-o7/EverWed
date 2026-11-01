@@ -21,7 +21,6 @@ import { BurgundySilkShader } from "@/components/shaders/BurgundySilkShader";
 import { GoldParticles } from "@/components/animations/GoldParticles";
 import { MagneticButton } from "@/components/animations/MagneticButton";
 import { RevealOnScroll, StaggerContainer, StaggerItem } from "@/components/animations/RevealOnScroll";
-import { AnimatedCounter } from "@/components/animations/AnimatedCounter";
 
 export const LandingPage: React.FC = () => {
   return (
@@ -175,52 +174,30 @@ export const LandingPage: React.FC = () => {
             </div>
           </RevealOnScroll>
 
-          {/* Key Metrics Strip */}
+          {/* Plain-language product summary */}
           <RevealOnScroll variant="fadeUp" delay={0.72}>
             <div
-              className="mt-16 pt-10 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left p-6 rounded-2xl"
+              className="mt-16 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 max-w-6xl mx-auto text-left p-4 sm:p-5 rounded-2xl"
               style={{
-                borderTop: "1px solid rgba(201,161,74,0.20)",
                 background: "rgba(10,2,5,0.42)",
                 border: "1px solid rgba(201,161,74,0.18)",
                 backdropFilter: "blur(12px)",
               }}
             >
-              <div>
-                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Operational Precision</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
-                  <AnimatedCounter value={25} suffix="+" duration={1.8} />
-                  <span className="text-lg ml-1 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>Playbooks</span>
-                </h4>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Pre-engineered tasks</p>
-              </div>
-
-              <div>
-                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Quote Engine</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
-                  <AnimatedCounter value={100} suffix="%" duration={1.6} />
-                  <span className="text-lg ml-1 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>Normalized</span>
-                </h4>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Fair per-plate comparison</p>
-              </div>
-
-              <div>
-                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Financial Integrity</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
-                  <span>Zero</span>
-                  <span className="text-lg ml-1.5 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>Variance</span>
-                </h4>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Mandatory bill audits</p>
-              </div>
-
-              <div>
-                <p className="text-[11px] uppercase tracking-wider" style={{ color: "rgba(245,238,230,0.55)" }}>Platform Sync</p>
-                <h4 className="font-serif text-2xl sm:text-3xl font-bold mt-1 flex items-baseline" style={{ color: "#C9A14A" }}>
-                  <span>Odoo</span>
-                  <span className="text-lg ml-1 font-sans font-normal" style={{ color: "rgba(245,238,230,0.70)" }}>XML-RPC</span>
-                </h4>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(245,238,230,0.50)" }}>Dual-mode resilience</p>
-              </div>
+              {[
+                { icon: Heart, title: "Choose your Planner", detail: "Browse profiles and select the person you want to work with." },
+                { icon: Calendar, title: "Plan together", detail: "Your events, guest list and checklist live in one shared workspace." },
+                { icon: DollarSign, title: "Pay with clarity", detail: "Review the agreed fee, balance and hosted payment options." },
+                { icon: CheckCircle, title: "See payment updates", detail: "Confirmed online payments appear for you and your Planner." },
+              ].map(({ icon: Icon, title, detail }) => (
+                <div key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4 transition-colors hover:bg-white/[0.08]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold/15 text-gold"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+                    <h3 className="font-serif text-base font-semibold leading-snug text-ivory">{title}</h3>
+                  </div>
+                  <p className="mt-2.5 text-xs leading-relaxed text-ivory/70">{detail}</p>
+                </div>
+              ))}
             </div>
           </RevealOnScroll>
         </div>

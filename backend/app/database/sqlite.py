@@ -21,7 +21,7 @@ from app.core.money import from_paise, to_paise
 
 logger = logging.getLogger("everwed.database")
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 7
 
 # Fields copied from the JSON payload into indexed SQLite columns. Relations
 # also carry foreign keys so application-level checks have a database backstop.
@@ -51,7 +51,7 @@ COLLECTIONS: dict[str, tuple[tuple[str, ...], dict[str, str]]] = {
         {"wedding_id": "weddings", "event_id": "events"},
     ),
     "client_payments": (
-        ("wedding_id", "transaction_reference"),
+        ("wedding_id", "transaction_reference", "provider_payment_id", "provider_payment_link_id"),
         {"wedding_id": "weddings"},
     ),
     "vendor_bills": (
@@ -61,6 +61,14 @@ COLLECTIONS: dict[str, tuple[tuple[str, ...], dict[str, str]]] = {
     "vendor_payments": (
         ("bill_id", "vendor_id", "transaction_reference"),
         {"bill_id": "vendor_bills", "vendor_id": "vendors"},
+    ),
+    "payment_links": (
+        ("wedding_id", "created_by_user_id", "provider_link_id", "reference_id", "client_request_id", "status"),
+        {"wedding_id": "weddings", "created_by_user_id": "users"},
+    ),
+    "payment_webhook_events": (
+        ("provider_event_id", "event_type", "processed_at"),
+        {},
     ),
 }
 
@@ -241,6 +249,39 @@ class SQLiteDatabase:
                         f'CREATE UNIQUE INDEX IF NOT EXISTS "uq_{collection}_transaction_reference" '
                         f'ON "{collection}"("transaction_reference") '
                         'WHERE "transaction_reference" IS NOT NULL AND "transaction_reference" <> \'\''
+                    )
+                if collection == "vendor_payments":
+                    connection.execute(
+                        'CREATE UNIQUE INDEX IF NOT EXISTS "uq_vendor_payments_transaction_reference_ci" '
+                        'ON "vendor_payments"("transaction_reference" COLLATE NOCASE) '
+                        'WHERE "transaction_reference" IS NOT NULL AND trim("transaction_reference") <> \'\''
+                    )
+                if collection == "vendor_bills":
+                    connection.execute(
+                        'CREATE UNIQUE INDEX IF NOT EXISTS "uq_vendor_bills_vendor_number_ci" '
+                        'ON "vendor_bills"("vendor_id", "bill_number" COLLATE NOCASE)'
+                    )
+                if collection == "client_payments":
+                    connection.execute(
+                        'CREATE UNIQUE INDEX IF NOT EXISTS "uq_client_payments_transaction_reference_ci" '
+                        'ON "client_payments"(lower(trim("transaction_reference"))) '
+                        'WHERE "transaction_reference" IS NOT NULL AND trim("transaction_reference") <> \'\''
+                    )
+                    for column in ("provider_payment_id",):
+                        connection.execute(
+                            f'CREATE UNIQUE INDEX IF NOT EXISTS "uq_client_payments_{column}" '
+                            f'ON "client_payments"("{column}") WHERE "{column}" IS NOT NULL AND "{column}" <> \'\''
+                        )
+                if collection == "payment_links":
+                    for column in ("provider_link_id", "reference_id", "client_request_id"):
+                        connection.execute(
+                            f'CREATE UNIQUE INDEX IF NOT EXISTS "uq_payment_links_{column}" '
+                            f'ON "payment_links"("{column}") WHERE "{column}" IS NOT NULL AND "{column}" <> \'\''
+                        )
+                if collection == "payment_webhook_events":
+                    connection.execute(
+                        'CREATE UNIQUE INDEX IF NOT EXISTS "uq_payment_webhook_provider_event_id" '
+                        'ON "payment_webhook_events"("provider_event_id")'
                     )
             if version < 2:
                 # Convert existing INR JSON fields before marking the migration complete.

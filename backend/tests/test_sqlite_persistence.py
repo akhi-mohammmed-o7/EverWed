@@ -161,7 +161,7 @@ def test_schema_v1_money_migration_converts_rupees_to_paise(tmp_path) -> None:
 
     assert payload["estimated_budget_paise"] == 567
     assert "estimated_budget" not in payload
-    assert version == 4
+    assert version == 7
     assert database.get("enquiries", "legacy-enquiry")["estimated_budget"] == 5.67
 
 
@@ -188,7 +188,7 @@ def test_schema_v2_migration_adds_planner_assignment_foreign_key(tmp_path) -> No
 
     assert "assigned_planner_id" in columns
     assert any(row["from"] == "assigned_planner_id" and row["table"] == "users" for row in foreign_keys)
-    assert version == 4
+    assert version == 7
     assert database.get("weddings", "wed-legacy")["status"] == "planning"
 
 

@@ -63,6 +63,20 @@ class DashboardService:
             (p for p in payments if p.get("status") in ("received", "verified")),
             "amount",
         ))
+        contracts_missing_count = sum(
+            1 for wedding in weddings
+            if to_paise(wedding.get("package_fee") or 0) <= 0
+        )
+        contract_overpayment_count = sum(
+            1 for wedding in weddings
+            if to_paise(wedding.get("package_fee") or 0) > 0
+            and sum_paise(
+                (payment for payment in payments
+                 if payment.get("wedding_id") == wedding["id"]
+                 and payment.get("status") in ("received", "verified")),
+                "amount",
+            ) > to_paise(wedding.get("package_fee"))
+        )
         client_receivables_paise = sum(
             max(
                 0,
@@ -114,6 +128,8 @@ class DashboardService:
                     vendor_costs=fin.actual_vendor_bills_total or fin.agreed_vendor_total,
                     gross_profit=fin.net_agency_profit,
                     margin_percent=fin.profit_margin_percentage,
+                    client_contract_missing=fin.client_contract_missing,
+                    client_overpayment=fin.client_overpayment_amount,
                 )
             )
         estimated_profit = from_paise(estimated_profit_paise)
@@ -131,8 +147,11 @@ class DashboardService:
             overdue_tasks_count=len(overdue_tasks),
             total_client_receivables_outstanding=round(client_receivables, 2),
             total_client_payments_received=round(client_paid, 2),
+            client_contracts_missing_count=contracts_missing_count,
+            client_contract_overpayment_count=contract_overpayment_count,
             total_vendor_payables_outstanding=round(vendor_payables, 2),
             total_vendor_bills_recorded=round(total_vendor_bills, 2),
+            total_vendor_payments_made=round(vendor_paid, 2),
             season_contracted_revenue=round(total_contract_value, 2),
             season_actual_expenses=round(season_expenses, 2),
             season_estimated_profit=round(estimated_profit, 2),

@@ -5,6 +5,8 @@ import type {
   LoginResponse,
   User,
   UserCreate,
+  PlannerProfileUpdate,
+  PlannerDirectoryEntry,
   CoupleSignupRequest,
   CoupleWeddingOnboarding,
   Enquiry,
@@ -32,6 +34,7 @@ import type {
   OperationalIssue,
   OperationsOverview,
   ClientPayment,
+  ClientPaymentLink,
   ClientPaymentCreate,
   VendorBill,
   VendorBillCreate,
@@ -60,6 +63,7 @@ export const realAdapter: ServiceAdapter = {
     registerCouple: (payload: CoupleSignupRequest) => apiClient.post<LoginResponse>("/api/v1/auth/couple-signup", payload),
     registerPlanner: (payload) => apiClient.post<{ message: string }>("/api/v1/auth/planner-signup", payload),
     setPlannerApproval: (uid, status) => apiClient.patch<User>(`/api/v1/auth/users/${uid}/approval`, { status }),
+    updatePlannerProfile: (payload: PlannerProfileUpdate) => apiClient.patch<User>("/api/v1/auth/planner-profile", payload),
   },
 
   enquiries: {
@@ -85,6 +89,8 @@ export const realAdapter: ServiceAdapter = {
     assignPlanner: (id, plannerEmail) =>
       apiClient.post<Wedding>(`/api/v1/weddings/${id}/planner-assignment`, { planner_email: plannerEmail }),
     onboardCouple: (payload: CoupleWeddingOnboarding) => apiClient.post<Wedding>("/api/v1/weddings/onboarding", payload),
+    listPlanners: () => apiClient.get<PlannerDirectoryEntry[]>("/api/v1/weddings/planners"),
+    selectPlanner: (weddingId, plannerUid) => apiClient.patch<Wedding>(`/api/v1/weddings/${weddingId}/planner-selection`, { planner_uid: plannerUid }),
   },
 
   events: {
@@ -160,6 +166,10 @@ export const realAdapter: ServiceAdapter = {
   finance: {
     listClientPayments: (weddingId) =>
       apiClient.get<ClientPayment[]>(`/api/v1/finance/client-payments?wedding_id=${weddingId}`),
+    listClientPaymentLinks: (weddingId) =>
+      apiClient.get<ClientPaymentLink[]>(`/api/v1/finance/client-payment-links?wedding_id=${weddingId}`),
+    createClientPaymentLink: (payload, requestId) =>
+      apiClient.post<ClientPaymentLink>("/api/v1/finance/client-payment-links", payload, { "Idempotency-Key": requestId }),
     recordClientPayment: (payload: ClientPaymentCreate) =>
       apiClient.post<ClientPayment>("/api/v1/finance/client-payments", payload),
     listVendorBills: (weddingId) =>

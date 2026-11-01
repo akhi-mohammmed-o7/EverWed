@@ -11,8 +11,8 @@ from app.services.store import STANDARD_WEDDING_TASKS, store
 
 def _owner_for(wedding: dict) -> str:
     """Return the real accountable owner for generated tasks."""
-    if wedding.get("assigned_planner_email"):
-        return wedding["assigned_planner_email"]
+    if wedding.get("assigned_planner_id"):
+        return wedding.get("assigned_planner_name") or "Assigned Planner"
     # Couple-created workspaces may not have a planner yet; say so honestly
     # instead of implying an agency planner is already handling the task.
     return "Couple" if wedding.get("created_by_role") == "couple" else "Lead Planner"

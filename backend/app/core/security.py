@@ -128,6 +128,10 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         "approval_status": user.get("approval_status"),
         "partner_one_name": user.get("partner_one_name"),
         "partner_two_name": user.get("partner_two_name"),
+        "planner_bio": user.get("planner_bio"),
+        "planner_specialties": user.get("planner_specialties", []),
+        "planner_destinations": user.get("planner_destinations", []),
+        "planner_languages": user.get("planner_languages", []),
     }
 
 

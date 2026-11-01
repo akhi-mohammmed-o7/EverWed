@@ -2,6 +2,8 @@ import type {
   User,
   GuestImportResult,
   UserCreate,
+  PlannerProfileUpdate,
+  PlannerDirectoryEntry,
   CoupleSignupRequest,
   LoginRequest,
   LoginResponse,
@@ -35,6 +37,7 @@ import type {
   VendorBillCreate,
   VendorPayment,
   VendorPaymentCreate,
+  ClientPaymentLink,
   FinancialSummary,
   DashboardOverview,
   Guest,
@@ -52,6 +55,7 @@ export interface AuthService {
   registerCouple(payload: CoupleSignupRequest): Promise<LoginResponse>;
   registerPlanner(payload: { name: string; email: string; phone: string; password: string }): Promise<{ message: string }>;
   setPlannerApproval(uid: number, status: "approved" | "rejected"): Promise<User>;
+  updatePlannerProfile(payload: PlannerProfileUpdate): Promise<User>;
 }
 
 export interface EnquiryService {
@@ -69,6 +73,8 @@ export interface WeddingService {
   update(id: string, payload: WeddingUpdate): Promise<Wedding>;
   assignPlanner(id: string, plannerEmail: string): Promise<Wedding>;
   onboardCouple(payload: import("@/types").CoupleWeddingOnboarding): Promise<Wedding>;
+  listPlanners(): Promise<PlannerDirectoryEntry[]>;
+  selectPlanner(weddingId: string, plannerUid: number): Promise<Wedding>;
 }
 
 export interface EventService {
@@ -127,6 +133,8 @@ export interface OperationService {
 
 export interface FinanceService {
   listClientPayments(weddingId: string): Promise<ClientPayment[]>;
+  listClientPaymentLinks(weddingId: string): Promise<ClientPaymentLink[]>;
+  createClientPaymentLink(payload: { wedding_id: string; stage: string }, requestId: string): Promise<ClientPaymentLink>;
   recordClientPayment(payload: ClientPaymentCreate): Promise<ClientPayment>;
   listVendorBills(weddingId: string): Promise<VendorBill[]>;
   recordVendorBill(payload: VendorBillCreate): Promise<VendorBill>;

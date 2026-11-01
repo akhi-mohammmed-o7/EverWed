@@ -67,6 +67,19 @@ class WeddingPlannerAssignment(BaseModel):
     planner_email: str = Field(min_length=3, max_length=254)
 
 
+class WeddingPlannerSelection(BaseModel):
+    planner_uid: int = Field(gt=0)
+
+
+class PlannerDirectoryEntry(BaseModel):
+    uid: int
+    name: str
+    bio: str = ""
+    specialties: List[str] = Field(default_factory=list)
+    destinations: List[str] = Field(default_factory=list)
+    languages: List[str] = Field(default_factory=list)
+
+
 class CoupleWeddingOnboarding(BaseModel):
     partner_one_name: Optional[str] = Field(None, min_length=1, max_length=120)
     partner_two_name: Optional[str] = Field(None, min_length=1, max_length=120)
@@ -79,6 +92,7 @@ class CoupleWeddingOnboarding(BaseModel):
     theme: str = Field(default="", max_length=160)
     tradition: str = Field(default="", max_length=120)
     regional_customization: str = Field(default="", max_length=500)
+    preferred_planner_uid: Optional[int] = Field(None, gt=0)
     functions: List["OnboardingFunction"] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")

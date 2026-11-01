@@ -5,13 +5,42 @@ import { Card } from "@/components/ui/Card";
 import { services } from "@/services";
 import type { Task, Wedding, WeddingEvent } from "@/types";
 import { formatDate } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 type AssignedWorkspace = { wedding: Wedding; tasks: Task[]; events: WeddingEvent[] };
 
 export const PlannerHomePage: React.FC = () => {
+  const { user, refreshProfile } = useAuth();
   const [workspaces, setWorkspaces] = useState<AssignedWorkspace[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profile, setProfile] = useState({ planner_bio: "", planner_specialties: "", planner_destinations: "", planner_languages: "" });
+
+  useEffect(() => {
+    if (!user) return;
+    setProfile({
+      planner_bio: user.planner_bio ?? "",
+      planner_specialties: user.planner_specialties?.join(", ") ?? "",
+      planner_destinations: user.planner_destinations?.join(", ") ?? "",
+      planner_languages: user.planner_languages?.join(", ") ?? "",
+    });
+  }, [user]);
+
+  const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setProfileBusy(true); setProfileMessage(""); setError("");
+    try {
+      await services.auth.updatePlannerProfile({
+        planner_bio: profile.planner_bio,
+        planner_specialties: profile.planner_specialties.split(",").map((value) => value.trim()).filter(Boolean),
+        planner_destinations: profile.planner_destinations.split(",").map((value) => value.trim()).filter(Boolean),
+        planner_languages: profile.planner_languages.split(",").map((value) => value.trim()).filter(Boolean),
+      });
+      await refreshProfile(); setProfileMessage("Your couple-facing Planner profile is saved.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save your profile."); }
+    finally { setProfileBusy(false); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -41,10 +70,21 @@ export const PlannerHomePage: React.FC = () => {
   return (
     <main className="space-y-6">
       <header><p className="text-xs font-bold uppercase tracking-wider text-gold-700">Planner workspace</p><h1 className="mt-1 font-serif text-3xl font-bold text-forest-900">Your assigned weddings</h1><p className="mt-2 text-sm text-muted-foreground">This view is limited to weddings assigned to your planner account.</p></header>
+      <Card className="p-5 sm:p-6">
+        <h2 className="font-serif text-xl font-semibold text-forest-900">Planner profile for couples</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Share your experience so couples can choose someone who fits their destination, style and language needs.</p>
+        <form onSubmit={saveProfile} className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium sm:col-span-2">Short introduction<textarea maxLength={600} rows={3} value={profile.planner_bio} onChange={(event) => setProfile({ ...profile, planner_bio: event.target.value })} className="input-base mt-1 w-full" /></label>
+          <label className="text-sm font-medium">Specialties, comma separated<input maxLength={800} value={profile.planner_specialties} onChange={(event) => setProfile({ ...profile, planner_specialties: event.target.value })} className="input-base mt-1 w-full" placeholder="Destination weddings, Hindu ceremonies" /></label>
+          <label className="text-sm font-medium">Destinations, comma separated<input maxLength={800} value={profile.planner_destinations} onChange={(event) => setProfile({ ...profile, planner_destinations: event.target.value })} className="input-base mt-1 w-full" placeholder="Jaipur, Udaipur" /></label>
+          <label className="text-sm font-medium">Languages, comma separated<input maxLength={600} value={profile.planner_languages} onChange={(event) => setProfile({ ...profile, planner_languages: event.target.value })} className="input-base mt-1 w-full" placeholder="English, Hindi" /></label>
+          <div className="flex items-end gap-3"><button disabled={profileBusy} className="rounded-lg bg-forest-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{profileBusy ? "Saving…" : "Save profile"}</button>{profileMessage && <p role="status" className="pb-2 text-xs text-emerald-800">{profileMessage}</p>}</div>
+        </form>
+      </Card>
       <section className="grid gap-3 sm:grid-cols-3" aria-label="Planning summary">
         {[{ label: "Assigned weddings", value: workspaces.length }, { label: "Open tasks", value: activeTasks.length }, { label: "Overdue tasks", value: overdueTasks.length }].map((item) => <Card key={item.label} className="p-4"><p className="text-xs font-semibold text-muted-foreground">{item.label}</p><p className="mt-1 font-serif text-3xl font-bold text-forest-900">{item.value}</p></Card>)}
       </section>
-      {workspaces.length === 0 ? <Card className="p-8 text-center"><h2 className="font-serif text-xl font-semibold text-forest-900">No weddings assigned yet</h2><p className="mt-2 text-sm text-muted-foreground">Ask the Founder to assign a wedding to your planner account.</p></Card> : <section className="grid gap-4 lg:grid-cols-2" aria-label="Assigned wedding workspaces">
+      {workspaces.length === 0 ? <Card className="p-8 text-center"><h2 className="font-serif text-xl font-semibold text-forest-900">No weddings assigned yet</h2><p className="mt-2 text-sm text-muted-foreground">New couple workspaces are automatically assigned to an available Planner. If none are available, they will be assigned when an approved planner is available.</p></Card> : <section className="grid gap-4 lg:grid-cols-2" aria-label="Assigned wedding workspaces">
         {workspaces.map(({ wedding, tasks, events }) => {
           const remaining = tasks.filter((task) => task.status !== "done").length;
           const overdue = tasks.filter((task) => task.status !== "done" && task.is_overdue).length;

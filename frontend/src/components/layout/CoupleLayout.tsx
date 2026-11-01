@@ -65,7 +65,7 @@ export const CoupleLayout: React.FC = () => {
       <Navbar />
 
       {/* Hero Sub-header */}
-      <div className="bg-forest-900 text-ivory py-8 px-4 sm:px-6 lg:px-8 border-b border-gold/30 relative overflow-hidden">
+      <div className="bg-forest-900 text-ivory py-7 sm:py-8 px-4 sm:px-6 lg:px-8 border-b border-gold/30 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#D7B875_1px,transparent_1px)] [background-size:16px_16px]" />
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -92,16 +92,17 @@ export const CoupleLayout: React.FC = () => {
               const Icon = tab.icon;
               const isActive = location.pathname === tab.path;
               return (
-                <Link
+              <Link
                   key={tab.path}
                   to={tab.path}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex min-h-10 items-center gap-2.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors ${
                     isActive
                       ? "bg-forest-800 text-ivory shadow-xs"
                       : "text-forest-700 hover:bg-ivory-100 hover:text-forest-900"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-gold" : "text-forest-500"}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-gold" : "text-forest-500"}`} />
                   {tab.label}
                 </Link>
               );
@@ -111,7 +112,7 @@ export const CoupleLayout: React.FC = () => {
       </div>
 
       {/* Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="ew-app-main flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Outlet />
       </main>
     </div>

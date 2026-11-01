@@ -7,10 +7,10 @@ from __future__ import annotations
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.dependencies import can_access_wedding, get_current_user, require_role, require_wedding_access
+from app.api.dependencies import can_access_wedding, ensure_wedding_access, get_current_user, require_role, require_wedding_access
 from app.core.exceptions import PermissionDeniedError, RoyalKnotException
 from app.schemas.common import APIResponse
-from app.schemas.wedding import CoupleWeddingOnboarding, WeddingCreate, WeddingPlannerAssignment, WeddingResponse, WeddingUpdate
+from app.schemas.wedding import CoupleWeddingOnboarding, PlannerDirectoryEntry, WeddingCreate, WeddingPlannerAssignment, WeddingPlannerSelection, WeddingResponse, WeddingUpdate
 from app.services.wedding_service import WeddingService
 from app.services.store import store
 
@@ -59,6 +59,7 @@ async def couple_onboarding(
     data = WeddingService.create_wedding(
         wedding, couple_user_id=account["id"], tradition=payload.tradition.strip() or None,
         regional_customization=payload.regional_customization.strip() or None, functions=functions,
+        preferred_planner_uid=payload.preferred_planner_uid,
     )
     return APIResponse(success=True, data=data)
 
@@ -74,10 +75,22 @@ async def assign_planner(
     return APIResponse(success=True, data=data)
 
 
+@router.patch("/{wedding_id}/planner-selection", response_model=APIResponse[WeddingResponse])
+async def couple_select_planner(
+    wedding_id: str,
+    payload: WeddingPlannerSelection,
+    current_user: dict = Depends(require_role("couple")),
+):
+    """Let a couple choose an active Planner for their own wedding."""
+    ensure_wedding_access(current_user, wedding_id)
+    data = WeddingService.assign_planner_by_uid(wedding_id, payload.planner_uid)
+    return APIResponse(success=True, data=data)
+
+
 @router.post("", response_model=APIResponse[WeddingResponse], status_code=status.HTTP_201_CREATED)
-async def create_wedding(payload: WeddingCreate, _: dict = Depends(require_role("admin", "planner"))):
+async def create_wedding(payload: WeddingCreate, current_user: dict = Depends(require_role("admin", "planner"))):
     """Create a new luxury wedding record."""
-    data = WeddingService.create_wedding(payload)
+    data = WeddingService.create_wedding(payload, creator_user=current_user)
     return APIResponse(success=True, data=data)
 
 
@@ -91,6 +104,26 @@ async def list_weddings(
         wedding for wedding in WeddingService.list_weddings(status=status)
         if can_access_wedding(current_user, wedding.id)
     ]
+    return APIResponse(success=True, data=data)
+
+
+@router.get("/planners", response_model=APIResponse[List[PlannerDirectoryEntry]])
+async def list_planner_directory(
+    _: dict = Depends(require_role("couple")),
+):
+    """Return only public profile details for available, approved Planners."""
+    planners = sorted(
+        WeddingService._active_planners(),
+        key=lambda planner: (planner.get("name", "").casefold(), int(planner.get("uid", 0))),
+    )
+    data = [PlannerDirectoryEntry(
+        uid=int(planner["uid"]),
+        name=planner["name"],
+        bio=planner.get("planner_bio", ""),
+        specialties=planner.get("planner_specialties", []),
+        destinations=planner.get("planner_destinations", []),
+        languages=planner.get("planner_languages", []),
+    ) for planner in planners]
     return APIResponse(success=True, data=data)
 
 

@@ -30,8 +30,15 @@ logger = logging.getLogger("royal_knot.finance_service")
 
 class FinanceService:
     @staticmethod
+    def get_vendor_bill(bill_id: str) -> dict:
+        bill = store.vendor_bills.get(bill_id)
+        if not bill:
+            raise OdooRecordNotFound(detail=f"Vendor Bill '{bill_id}' not found")
+        return bill
+
+    @staticmethod
     def record_client_payment(payload: ClientPaymentCreate) -> ClientPaymentResponse:
-        pay_id = f"pay-client-{uuid.uuid4().hex[:8]}"
+        pay_id = f"pay-client-{uuid.uuid4().hex}"
         now = datetime.now(timezone.utc)
         with store.transaction(immediate=True):
             wedding = store.weddings.get(payload.wedding_id)
@@ -39,18 +46,56 @@ class FinanceService:
                 raise OdooRecordNotFound(detail=f"Wedding '{payload.wedding_id}' does not exist")
 
             if any(
-                payment.get("transaction_reference") == payload.transaction_reference
+                str(payment.get("transaction_reference", "")).strip().casefold()
+                == payload.transaction_reference.strip().casefold()
                 for payment in store.client_payments.values()
             ):
                 raise DuplicateRecordError(
                     detail=f"Client payment with transaction reference '{payload.transaction_reference}' already recorded"
                 )
 
+            contract_paise = to_paise(wedding.get("package_fee") or 0)
+            if contract_paise <= 0:
+                raise RoyalKnotException(
+                    status_code=409,
+                    detail="Record the agreed wedding contract amount before entering a client payment.",
+                    error_code="CLIENT_CONTRACT_REQUIRED",
+                )
+            received_paise = sum_paise(
+                (payment for payment in store.client_payments.values()
+                 if payment.get("wedding_id") == payload.wedding_id
+                 and payment.get("status") in {"received", "verified"}),
+                "amount",
+            )
+            amount_paise = to_paise(payload.amount)
+            remaining_paise = max(0, contract_paise - received_paise)
+            if amount_paise > remaining_paise:
+                raise RoyalKnotException(
+                    status_code=400,
+                    detail=f"Payment exceeds the remaining contract balance of ₹{from_paise(remaining_paise):,.2f}.",
+                    error_code="CLIENT_OVERPAYMENT_PROHIBITED",
+                )
+
+            now = datetime.now(timezone.utc)
+            active_online_link = next((
+                link for link in store.payment_links.values()
+                if link.get("wedding_id") == payload.wedding_id
+                and link.get("status") in {"creating", "created", "partially_paid", "creation_unknown"}
+                and link.get("expires_at") and link["expires_at"] > now
+                and int(link.get("amount_paise", 0)) > int(link.get("amount_paid_paise", 0))
+            ), None)
+            if active_online_link:
+                raise RoyalKnotException(
+                    status_code=409,
+                    detail="An online payment link is active for this wedding. Reconcile or let it expire before recording an offline payment.",
+                    error_code="ACTIVE_ONLINE_PAYMENT_LINK",
+                )
+
             data = {
                 "id": pay_id,
                 "wedding_id": payload.wedding_id,
                 "stage": payload.stage,
-                "amount": normalize_rupees(payload.amount),
+                "amount": from_paise(amount_paise),
                 "payment_method": payload.payment_method,
                 "transaction_reference": payload.transaction_reference,
                 "payment_date": payload.payment_date,
@@ -107,9 +152,18 @@ class FinanceService:
         if not vendor:
             raise OdooRecordNotFound(detail=f"Vendor '{payload.vendor_id}' does not exist")
 
+        if payload.event_id:
+            event = store.events.get(payload.event_id)
+            if not event or event.get("wedding_id") != payload.wedding_id:
+                raise RoyalKnotException(status_code=422, detail="Bill event must belong to the selected wedding.", error_code="BILL_EVENT_MISMATCH")
+        if payload.quote_id:
+            quote = store.quotes.get(payload.quote_id)
+            if not quote or quote.get("wedding_id") != payload.wedding_id or quote.get("vendor_id") != payload.vendor_id:
+                raise RoyalKnotException(status_code=422, detail="Bill quote must belong to the selected wedding and vendor.", error_code="BILL_QUOTE_MISMATCH")
+
         # Duplicate bill number check
         for b in store.vendor_bills.values():
-            if b.get("vendor_id") == payload.vendor_id and b.get("bill_number") == payload.bill_number:
+            if b.get("vendor_id") == payload.vendor_id and b.get("bill_number", "").strip().casefold() == payload.bill_number.casefold():
                 raise DuplicateRecordError(
                     detail=f"Vendor bill with number '{payload.bill_number}' for vendor '{vendor['name']}' already exists"
                 )
@@ -181,6 +235,7 @@ class FinanceService:
                 VendorPaymentResponse(**p) for p in store.vendor_payments.values()
                 if p.get("bill_id") == b["id"]
             ]
+            bill_payments.sort(key=lambda payment: (payment.payment_date, payment.created_at))
             total_paid_paise = sum_paise((p.model_dump() for p in bill_payments), "amount")
             total_paid = from_paise(total_paid_paise)
             b["total_paid"] = total_paid
@@ -209,7 +264,7 @@ class FinanceService:
 
         # Duplicate reference check
         for vp in store.vendor_payments.values():
-            if vp.get("transaction_reference") == payload.transaction_reference:
+            if str(vp.get("transaction_reference", "")).strip().casefold() == payload.transaction_reference.casefold():
                 raise DuplicateRecordError(
                     detail=f"Vendor payment reference '{payload.transaction_reference}' already recorded"
                 )
@@ -230,7 +285,7 @@ class FinanceService:
                 error_code="OVERPAYMENT_PROHIBITED",
             )
 
-        pay_id = f"pay-vendor-{uuid.uuid4().hex[:8]}"
+        pay_id = f"pay-vendor-{uuid.uuid4().hex}"
         now = datetime.now(timezone.utc)
 
         data = {
@@ -242,6 +297,7 @@ class FinanceService:
             "payment_method": payload.payment_method,
             "transaction_reference": payload.transaction_reference,
             "payment_date": payload.payment_date,
+            "notes": payload.notes,
             "odoo_payment_id": None,
             "created_at": now,
         }
@@ -280,7 +336,13 @@ class FinanceService:
         )
         client_paid = from_paise(client_paid_paise)
         client_outstanding = from_paise(max(0, contract_value_paise - client_paid_paise))
-        if contract_value_paise > 0 and client_paid_paise >= contract_value_paise:
+        client_contract_missing = contract_value_paise <= 0
+        overpayment_paise = max(0, client_paid_paise - contract_value_paise) if not client_contract_missing else 0
+        if client_contract_missing:
+            client_status = "contract_missing"
+        elif overpayment_paise > 0:
+            client_status = "overpaid"
+        elif client_paid_paise >= contract_value_paise:
             client_status = "paid"
         elif client_paid_paise > 0:
             client_status = "partial"
@@ -321,6 +383,8 @@ class FinanceService:
             client_paid_amount=client_paid,
             client_outstanding_receivable=client_outstanding,
             client_payment_status=client_status,
+            client_contract_missing=client_contract_missing,
+            client_overpayment_amount=from_paise(overpayment_paise),
             agreed_vendor_total=agreed_vendor_total,
             actual_vendor_bills_total=actual_bills_total,
             vendor_paid_amount=vendor_paid_total,

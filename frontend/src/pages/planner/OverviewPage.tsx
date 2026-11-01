@@ -158,9 +158,10 @@ export const OverviewPage: React.FC = () => {
                     <Link to={`/planner/weddings/${w.wedding_id}`} className="hover:text-gold-800">
                       {w.title}
                     </Link>
+                    {(w.client_contract_missing || w.client_overpayment > 0) && <p className="mt-1 text-[11px] font-semibold text-amber-800">{w.client_contract_missing ? "Contract fee not set" : `Received exceeds fee by ${formatINR(w.client_overpayment)}`}</p>}
                   </td>
                   <td className="py-3.5 px-4 text-forest-700">{w.destination}</td>
-                  <td className="py-3.5 px-4 font-semibold text-forest-900">{formatINR(w.contract_value)}</td>
+                  <td className="py-3.5 px-4 font-semibold text-forest-900">{w.client_contract_missing ? <span className="text-amber-800">Not set</span> : formatINR(w.contract_value)}</td>
                   <td className="py-3.5 px-4 text-emerald-700 font-medium">{formatINR(w.client_paid)}</td>
                   <td className="py-3.5 px-4 text-amber-700 font-medium">{formatINR(w.vendor_costs)}</td>
                   <td className="py-3.5 px-4 font-bold text-forest-900">{formatINR(w.gross_profit)}</td>

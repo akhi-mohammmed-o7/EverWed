@@ -420,10 +420,10 @@ export const DESTINATIONS = DESTINATION_CATALOG.map(
 export const ENQUIRY_SOURCES = ["Instagram", "WhatsApp", "Referral", "Google", "Direct Call", "Website"];
 
 export const PAYMENT_STAGES = [
-  { value: "booking_deposit", label: "Booking Deposit (25%)" },
-  { value: "advance_payment", label: "Pre-Wedding Advance (50%)" },
-  { value: "final_settlement", label: "Final Settlement (25%)" },
-  { value: "extra_charge", label: "Operational Change Order" },
+  { value: "booking_deposit", label: "Booking deposit" },
+  { value: "advance_payment", label: "Advance payment" },
+  { value: "final_settlement", label: "Final payment" },
+  { value: "extra_charge", label: "Additional agreed charge" },
 ];
 
 export const TASK_CATEGORIES = [

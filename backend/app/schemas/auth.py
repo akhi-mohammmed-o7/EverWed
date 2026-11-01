@@ -31,6 +31,30 @@ class UserInfo(BaseModel):
     approval_status: Optional[str] = None
     partner_one_name: Optional[str] = None
     partner_two_name: Optional[str] = None
+    planner_bio: Optional[str] = None
+    planner_specialties: list[str] = Field(default_factory=list)
+    planner_destinations: list[str] = Field(default_factory=list)
+    planner_languages: list[str] = Field(default_factory=list)
+
+
+class PlannerProfileUpdate(BaseModel):
+    planner_bio: str = Field(default="", max_length=600)
+    planner_specialties: list[str] = Field(default_factory=list, max_length=12)
+    planner_destinations: list[str] = Field(default_factory=list, max_length=12)
+    planner_languages: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator("planner_specialties", "planner_destinations", "planner_languages")
+    @classmethod
+    def normalize_profile_tags(cls, values: list[str]) -> list[str]:
+        cleaned = [value.strip()[:80] for value in values if value.strip()]
+        if len({value.casefold() for value in cleaned}) != len(cleaned):
+            raise ValueError("Profile tags must not contain duplicates")
+        return cleaned
+
+    @field_validator("planner_bio")
+    @classmethod
+    def normalize_bio(cls, value: str) -> str:
+        return value.strip()
 
 
 class FirstFounderSetup(BaseModel):

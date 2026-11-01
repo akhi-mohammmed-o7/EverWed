@@ -30,27 +30,96 @@ def _new_couple() -> tuple[TestClient, dict]:
     return client, response.json()["data"]["user"]
 
 
-def _onboard(client: TestClient) -> str:
+def _onboard(client: TestClient, preferred_planner_uid: int | None = None) -> str:
+    payload = {
+        "destination": "Jaipur",
+        "primary_venue": "Test Palace",
+        "guest_estimate": 250,
+        "budget_allocated": 5000000,
+        "start_date": "2027-02-10",
+        "end_date": "2027-02-12",
+        "theme": "Garden",
+        "tradition": "Interfaith / Mixed",
+        "regional_customization": "Family languages and customs",
+        "functions": [
+            {"name": "Welcome Dinner", "date": "2027-02-10", "start_time": "19:00", "end_time": "22:00"},
+            {"name": "Ceremony", "date": "2027-02-11", "start_time": "10:00", "end_time": "13:00"},
+        ],
+    }
+    if preferred_planner_uid is not None:
+        payload["preferred_planner_uid"] = preferred_planner_uid
     response = client.post(
         "/api/v1/weddings/onboarding",
-        json={
-            "destination": "Jaipur",
-            "primary_venue": "Test Palace",
-            "guest_estimate": 250,
-            "budget_allocated": 5000000,
-            "start_date": "2027-02-10",
-            "end_date": "2027-02-12",
-            "theme": "Garden",
-            "tradition": "Interfaith / Mixed",
-            "regional_customization": "Family languages and customs",
-            "functions": [
-                {"name": "Welcome Dinner", "date": "2027-02-10", "start_time": "19:00", "end_time": "22:00"},
-                {"name": "Ceremony", "date": "2027-02-11", "start_time": "10:00", "end_time": "13:00"},
-            ],
-        },
+        json=payload,
     )
     assert response.status_code == 201, response.text
     return response.json()["data"]["id"]
+
+
+def test_couple_selects_planner_and_both_roles_share_one_saved_wedding(client: TestClient) -> None:
+    suffix = uuid.uuid4().hex[:10]
+    email = f"profile-planner-{suffix}@example.com"
+    account = client.post("/api/v1/auth/users", json={
+        "name": "Destination Planner", "email": email,
+        "password": "Planner-Profile-1!", "role": "planner",
+    })
+    assert account.status_code == 201, account.text
+    planner_uid = account.json()["data"]["uid"]
+
+    planner_client = TestClient(client.app)
+    assert planner_client.post("/api/v1/auth/login", json={"username": email, "password": "Planner-Profile-1!"}).status_code == 200
+    profile = planner_client.patch("/api/v1/auth/planner-profile", json={
+        "planner_bio": "I coordinate multi-day celebrations in Rajasthan.",
+        "planner_specialties": ["Destination weddings", "Interfaith ceremonies"],
+        "planner_destinations": ["Jaipur", "Udaipur"],
+        "planner_languages": ["English", "Hindi"],
+    })
+    assert profile.status_code == 200, profile.text
+
+    couple, _ = _new_couple()
+    directory = couple.get("/api/v1/weddings/planners")
+    assert directory.status_code == 200, directory.text
+    selected = next(item for item in directory.json()["data"] if item["uid"] == planner_uid)
+    assert selected["destinations"] == ["Jaipur", "Udaipur"]
+    assert "email" not in selected
+
+    wedding_id = _onboard(couple, planner_uid)
+    wedding = couple.get(f"/api/v1/weddings/{wedding_id}").json()["data"]
+    assert wedding["assigned_planner_name"] == "Destination Planner"
+    assert planner_client.get(f"/api/v1/weddings/{wedding_id}").status_code == 200
+    assert planner_client.get(f"/api/v1/weddings/{wedding_id}/events").status_code == 200
+    assert planner_client.get(f"/api/v1/weddings/{wedding_id}/tasks").status_code == 200
+
+    # A couple can change from the initially selected Planner. Exercise the
+    # local 127.0.0.1 frontend origin as well: this used to be rejected by the
+    # cookie-origin guard even though localhost worked.
+    alternate = client.post("/api/v1/auth/users", json={
+        "name": "Alternate Planner", "email": f"alternate-{suffix}@example.com",
+        "password": "Planner-Profile-2!", "role": "planner",
+    })
+    assert alternate.status_code == 201, alternate.text
+    alternate_uid = alternate.json()["data"]["uid"]
+    origin = "http://127.0.0.1:5173"
+    preflight = couple.options(
+        f"/api/v1/weddings/{wedding_id}/planner-selection",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "PATCH",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert preflight.status_code == 200, preflight.text
+    assert preflight.headers["access-control-allow-origin"] == origin
+    changed = couple.patch(
+        f"/api/v1/weddings/{wedding_id}/planner-selection",
+        json={"planner_uid": alternate_uid},
+        headers={"Origin": origin},
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.headers["access-control-allow-origin"] == origin
+    assert changed.json()["data"]["assigned_planner_name"] == "Alternate Planner"
+    assert couple.get(f"/api/v1/weddings/{wedding_id}").json()["data"]["assigned_planner_name"] == "Alternate Planner"
+
 
 
 def test_couple_onboarding_generates_checklist_and_persists_completion(client: TestClient) -> None:
@@ -158,9 +227,10 @@ def test_couple_can_update_preferences_but_not_contract_fields(client: TestClien
     assert data["tradition"] == "Sikh"
     assert data["budget_allocated"] == 6200000
 
+    # The full finance summary contains internal agency margin and supplier
+    # payment data; Couples receive their own contract/payment view instead.
     summary = couple.get(f"/api/v1/finance/weddings/{wedding_id}/summary")
-    assert summary.status_code == 200, summary.text
-    assert summary.json()["data"]["client_paid_amount"] == 0
+    assert summary.status_code == 403
 
     forbidden = couple.patch(f"/api/v1/weddings/{wedding_id}", json={"status": "settled"})
     assert forbidden.status_code == 403
@@ -498,6 +568,17 @@ def test_planner_assignment_records_name_and_takes_generated_tasks(client: TestC
 
     other_couple, _ = _new_couple()
     other_wedding = _onboard(other_couple)
+    second_planner_email = f"another-planner-{uuid.uuid4().hex[:10]}@example.com"
+    second_planner = client.post("/api/v1/auth/users", json={
+        "name": "Another Planner", "email": second_planner_email,
+        "password": "Another-Planner-1!", "role": "planner",
+    })
+    assert second_planner.status_code == 201, second_planner.text
+    reassigned = client.post(
+        f"/api/v1/weddings/{other_wedding}/planner-assignment",
+        json={"planner_email": second_planner_email},
+    )
+    assert reassigned.status_code == 200, reassigned.text
     assert planner_client.get(f"/api/v1/weddings/{other_wedding}").status_code == 403
     assert planner_client.get("/api/v1/enquiries").status_code == 403
     assert planner_client.post(

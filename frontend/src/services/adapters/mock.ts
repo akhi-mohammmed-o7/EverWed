@@ -10,6 +10,9 @@ import type {
   Quote,
   Task,
   ClientPayment,
+  ClientPaymentLink,
+  PlannerDirectoryEntry,
+  PlannerProfileUpdate,
   VendorBill,
   VendorPayment,
   DashboardOverview,
@@ -799,6 +802,15 @@ export const mockAdapter: ServiceAdapter = {
     },
     async registerPlanner() { throw new Error("Planner applications require the persistent EverWed backend."); },
     async setPlannerApproval() { throw new Error("Planner approval requires the persistent EverWed backend."); },
+    async updatePlannerProfile(payload: PlannerProfileUpdate) {
+      await delay();
+      const account = _mockUsers.find((item) => item.uid === 99);
+      if (!account) throw new Error("Planner account not found.");
+      const updated = { ...account, ...payload };
+      _mockUsers = _mockUsers.map((item) => item.uid === updated.uid ? updated : item);
+      localStorage.setItem("auth_user", JSON.stringify(updated));
+      return updated;
+    },
   },
 
   enquiries: {
@@ -872,6 +884,7 @@ export const mockAdapter: ServiceAdapter = {
         guest_estimate: enq.estimated_guests,
         theme: enq.theme,
         budget_allocated: payload.confirmed_budget || enq.estimated_budget,
+        package_fee: payload.confirmed_package_fee,
         start_date: payload.wedding_start_date || enq.target_date || "2027-01-15",
         end_date: payload.wedding_end_date || "2027-01-18",
         status: "planning",
@@ -932,6 +945,17 @@ export const mockAdapter: ServiceAdapter = {
       await delay();
       const idx = _weddings.findIndex((w) => w.id === id);
       if (idx === -1) throw new Error(`Wedding '${id}' not found`);
+      if (payload.package_fee !== undefined) {
+        const received = _clientPayments
+          .filter((payment) => payment.wedding_id === id && ["received", "verified"].includes(payment.status))
+          .reduce((sum, payment) => sum + payment.amount, 0);
+        if (payload.package_fee != null && payload.package_fee < received) {
+          throw new Error("The contract amount cannot be below payments already recorded.");
+        }
+        if (payload.package_fee == null && received > 0) {
+          throw new Error("A contract amount cannot be removed after client payments have been recorded.");
+        }
+      }
       const updated: Wedding = {
         ..._weddings[idx],
         ...payload,
@@ -939,6 +963,26 @@ export const mockAdapter: ServiceAdapter = {
         updated_at: new Date().toISOString(),
       };
       _weddings[idx] = updated;
+      return updated;
+    },
+    async listPlanners(): Promise<PlannerDirectoryEntry[]> {
+      await delay();
+      return _mockUsers.filter((item) => item.role === "planner" && item.active !== false).map((item) => ({
+        uid: item.uid,
+        name: item.name,
+        bio: item.planner_bio ?? "",
+        specialties: item.planner_specialties ?? [],
+        destinations: item.planner_destinations ?? [],
+        languages: item.planner_languages ?? [],
+      }));
+    },
+    async selectPlanner(weddingId, plannerUid) {
+      await delay();
+      const planner = _mockUsers.find((item) => item.uid === plannerUid && item.role === "planner");
+      const index = _weddings.findIndex((item) => item.id === weddingId);
+      if (!planner || index < 0) throw new Error("Choose an existing Planner and wedding.");
+      const updated = { ..._weddings[index], assigned_planner_name: planner.name, assigned_planner_email: planner.email };
+      _weddings[index] = updated;
       return updated;
     },
     async assignPlanner(id, plannerEmail) {
@@ -1308,6 +1352,13 @@ export const mockAdapter: ServiceAdapter = {
   },
 
   finance: {
+    async listClientPaymentLinks(_weddingId): Promise<ClientPaymentLink[]> {
+      await delay();
+      return [];
+    },
+    async createClientPaymentLink() {
+      throw new Error("Real Razorpay payments require the persistent EverWed backend.");
+    },
     async listClientPayments(weddingId) {
       await delay();
       return _clientPayments
@@ -1316,7 +1367,15 @@ export const mockAdapter: ServiceAdapter = {
     },
     async recordClientPayment(payload) {
       await delay();
-      const existing = _clientPayments.find((p) => p.transaction_reference === payload.transaction_reference);
+      const wedding = _weddings.find((item) => item.id === payload.wedding_id);
+      if (!wedding) throw new Error(`Wedding '${payload.wedding_id}' not found`);
+      const contract = wedding.package_fee ?? 0;
+      if (contract <= 0) throw new Error("Record the agreed wedding contract amount before entering a client payment.");
+      const alreadyPaid = _clientPayments
+        .filter((payment) => payment.wedding_id === payload.wedding_id && ["received", "verified"].includes(payment.status))
+        .reduce((sum, payment) => sum + payment.amount, 0);
+      if (payload.amount > Math.max(0, contract - alreadyPaid)) throw new Error("Payment exceeds the remaining contract balance.");
+      const existing = _clientPayments.find((p) => p.transaction_reference.trim().toLocaleLowerCase() === payload.transaction_reference.trim().toLocaleLowerCase());
       if (existing) {
         throw new Error(`Payment with transaction reference '${payload.transaction_reference}' already recorded`);
       }
@@ -1329,6 +1388,9 @@ export const mockAdapter: ServiceAdapter = {
         created_at: now,
       };
       _clientPayments = [p, ..._clientPayments];
+      wedding.total_paid_by_client = alreadyPaid + p.amount;
+      if (p.stage === "booking_deposit") wedding.status = "confirmed";
+      _weddings = _weddings.map((item) => item.id === wedding.id ? wedding : item);
       return p;
     },
     async listVendorBills(weddingId) {
@@ -1385,23 +1447,35 @@ export const mockAdapter: ServiceAdapter = {
       bill.outstanding_balance = Math.max(0, bill.billed_amount - bill.total_paid);
       bill.status = bill.total_paid >= bill.billed_amount ? "paid" : "partially_paid";
       bill.payments.push(payment);
+      const wedding = _weddings.find((item) => item.id === bill.wedding_id);
+      if (wedding) {
+        const weddingBillIds = new Set(_vendorBills.filter((item) => item.wedding_id === wedding.id).map((item) => item.id));
+        wedding.total_paid_to_vendors = _vendorPayments
+          .filter((item) => weddingBillIds.has(item.bill_id))
+          .reduce((sum, item) => sum + item.amount, 0);
+        _weddings = _weddings.map((item) => item.id === wedding.id ? wedding : item);
+      }
       return payment;
     },
     async getFinancialSummary(weddingId) {
       await delay();
       const w = _weddings.find((wedding) => wedding.id === weddingId);
       if (!w) throw new Error(`Wedding '${weddingId}' not found`);
-      const contractValue = w.budget_allocated;
+      const contractValue = w.package_fee ?? 0;
       const clientPaid = _clientPayments
         .filter((p) => p.wedding_id === weddingId && ["received", "verified"].includes(p.status))
         .reduce((sum, p) => sum + p.amount, 0);
       const clientOutstanding = Math.max(0, contractValue - clientPaid);
+      const clientContractMissing = contractValue <= 0;
+      const clientOverpayment = clientContractMissing ? 0 : Math.max(0, clientPaid - contractValue);
       const agreedVendorTotal = _quotes
         .filter((q) => q.wedding_id === weddingId && q.status === "selected")
         .reduce((sum, q) => sum + q.normalized_total, 0);
       const bills = _vendorBills.filter((b) => b.wedding_id === weddingId);
       const actualBillsTotal = bills.reduce((sum, b) => sum + b.billed_amount, 0);
-      const vendorPaid = bills.reduce((sum, b) => sum + b.total_paid, 0);
+      const vendorPaid = _vendorPayments
+        .filter((payment) => bills.some((bill) => bill.id === payment.bill_id))
+        .reduce((sum, payment) => sum + payment.amount, 0);
       const vendorOutstanding = Math.max(0, actualBillsTotal - vendorPaid);
       const costVariance = actualBillsTotal - agreedVendorTotal;
       const expenses = actualBillsTotal > 0 ? actualBillsTotal : agreedVendorTotal;
@@ -1413,7 +1487,9 @@ export const mockAdapter: ServiceAdapter = {
         total_contract_value: contractValue,
         client_paid_amount: clientPaid,
         client_outstanding_receivable: clientOutstanding,
-        client_payment_status: clientPaid >= contractValue ? "paid" : clientPaid > 0 ? "partial" : "pending",
+        client_payment_status: clientContractMissing ? "contract_missing" : clientOverpayment > 0 ? "overpaid" : clientPaid >= contractValue ? "paid" : clientPaid > 0 ? "partial" : "pending",
+        client_contract_missing: clientContractMissing,
+        client_overpayment_amount: clientOverpayment,
         agreed_vendor_total: agreedVendorTotal,
         actual_vendor_bills_total: actualBillsTotal,
         vendor_paid_amount: vendorPaid,
@@ -1435,12 +1511,17 @@ export const mockAdapter: ServiceAdapter = {
         .sort((a, b) => a.date.localeCompare(b.date));
       const pendingTasks = _tasks.filter((t) => t.status !== "done");
       const overdueTasks = pendingTasks.filter((t) => t.due_date < today);
-      const totalContract = _weddings.reduce((s, w) => s + w.budget_allocated, 0);
+      const totalContract = _weddings.reduce((s, w) => s + (w.package_fee ?? 0), 0);
       const clientPaid = _clientPayments
         .filter((p) => ["received", "verified"].includes(p.status))
         .reduce((s, p) => s + p.amount, 0);
+      const clientPaidForWedding = (weddingId: string) => _clientPayments
+        .filter((payment) => payment.wedding_id === weddingId && ["received", "verified"].includes(payment.status))
+        .reduce((sum, payment) => sum + payment.amount, 0);
+      const clientContractsMissing = _weddings.filter((w) => (w.package_fee ?? 0) <= 0).length;
+      const clientContractOverpayments = _weddings.filter((w) => (w.package_fee ?? 0) > 0 && clientPaidForWedding(w.id) > (w.package_fee ?? 0)).length;
       const totalBills = _vendorBills.reduce((s, b) => s + b.billed_amount, 0);
-      const vendorPaid = _vendorBills.reduce((s, b) => s + b.total_paid, 0);
+      const vendorPaid = _vendorPayments.reduce((sum, payment) => sum + payment.amount, 0);
       const summaries = await Promise.all(
         _weddings.map(async (w) => {
           try {
@@ -1456,6 +1537,8 @@ export const mockAdapter: ServiceAdapter = {
               vendor_costs: f.actual_vendor_bills_total || f.agreed_vendor_total,
               gross_profit: f.net_agency_profit,
               margin_percent: f.profit_margin_percentage,
+              client_contract_missing: f.client_contract_missing,
+              client_overpayment: f.client_overpayment_amount,
             };
           } catch {
             return null;
@@ -1467,13 +1550,16 @@ export const mockAdapter: ServiceAdapter = {
         upcoming_events_count: upcomingEvents.length,
         pending_tasks_count: pendingTasks.length,
         overdue_tasks_count: overdueTasks.length,
-        total_client_receivables_outstanding: Math.max(0, totalContract - clientPaid),
+        total_client_receivables_outstanding: _weddings.reduce((sum, w) => sum + Math.max(0, (w.package_fee ?? 0) - clientPaidForWedding(w.id)), 0),
         total_client_payments_received: clientPaid,
+        client_contracts_missing_count: clientContractsMissing,
+        client_contract_overpayment_count: clientContractOverpayments,
         total_vendor_payables_outstanding: Math.max(0, totalBills - vendorPaid),
         total_vendor_bills_recorded: totalBills,
+        total_vendor_payments_made: vendorPaid,
         season_contracted_revenue: totalContract,
         season_actual_expenses: totalBills,
-        season_estimated_profit: totalContract - totalBills,
+        season_estimated_profit: summaries.reduce((sum, item) => sum + (item?.gross_profit ?? 0), 0),
         active_weddings: summaries.filter(Boolean) as DashboardOverview["active_weddings"],
         upcoming_events: upcomingEvents.slice(0, 8),
         urgent_tasks: pendingTasks.filter((t) => ["urgent", "high"].includes(t.priority)).slice(0, 8),

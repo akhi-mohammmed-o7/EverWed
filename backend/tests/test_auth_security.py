@@ -171,7 +171,7 @@ def test_couple_cannot_read_another_wedding(client: TestClient) -> None:
     assert client.get(f"/api/v1/weddings/{own_id}").status_code == 403
 
 
-def test_planner_cannot_access_unassigned_wedding(client: TestClient) -> None:
+def test_newly_created_planner_is_auto_assigned_to_existing_unassigned_wedding(client: TestClient) -> None:
     suffix = uuid.uuid4().hex[:10]
     wedding = client.post(
         "/api/v1/weddings",
@@ -207,8 +207,9 @@ def test_planner_cannot_access_unassigned_wedding(client: TestClient) -> None:
     )
     assert login.status_code == 200, login.text
     assert login.json()["data"].get("token") is None
-    planner_headers = {}
-    assert client.get(f"/api/v1/weddings/{wedding_id}", headers=planner_headers).status_code == 403
+    assigned = client.get(f"/api/v1/weddings/{wedding_id}")
+    assert assigned.status_code == 200
+    assert assigned.json()["data"]["assigned_planner_email"] == f"planner-{suffix}@example.com"
 
 
 def test_planner_application_requires_founder_approval(client: TestClient) -> None:

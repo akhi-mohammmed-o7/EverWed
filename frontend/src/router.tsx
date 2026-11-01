@@ -23,6 +23,7 @@ import { VendorsPage } from "@/pages/planner/VendorsPage";
 import { TasksPage } from "@/pages/planner/TasksPage";
 import { TeamManagementPage } from "@/pages/planner/TeamManagementPage";
 import { PlannerHomePage } from "@/pages/planner/PlannerHomePage";
+import { FinancePage } from "@/pages/planner/FinancePage";
 
 // Couple Pages
 import { CoupleDashboardPage } from "@/pages/couple/CoupleDashboardPage";
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
       { path: "enquiries", element: <AdminOnly><EnquiriesPage /></AdminOnly> },
       { path: "weddings", element: <WeddingsPage /> },
       { path: "weddings/:id", element: <WeddingDetailPage /> },
+      { path: "finance", element: <FinancePage /> },
       { path: "vendors", element: <VendorsPage /> },
       { path: "tasks", element: <TasksPage /> },
       { path: "team", element: <AdminOnly><TeamManagementPage /></AdminOnly> },

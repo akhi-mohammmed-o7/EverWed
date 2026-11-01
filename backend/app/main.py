@@ -47,9 +47,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     from app.services.store import store
     from app.services.seed import seed_demo_data
+    from app.services.wedding_service import WeddingService
 
     if not store.ping():
         raise RuntimeError("The configured SQLite database failed its startup ping")
+    newly_assigned = WeddingService.auto_assign_unassigned_weddings()
+    if newly_assigned:
+        logger.info("Auto-assigned %s unassigned wedding workspaces", newly_assigned)
     if settings.seed_demo_data_on_startup:
         seed_result = seed_demo_data()
         logger.info("EverWed demo data status: %s", seed_result.get("message"))
@@ -76,9 +80,20 @@ def create_app() -> FastAPI:
     )
 
     # ── CORS ─────────────────────────────────────────────────────────
+    # Local browsers commonly open Vite using either localhost, 127.0.0.1,
+    # or the IPv6 loopback address. Treat these as equivalent only in debug
+    # mode so cookie-backed API requests work whichever local URL is used.
+    allowed_origins = set(settings.cors_origins)
+    if settings.debug:
+        allowed_origins.update({
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://[::1]:5173",
+        })
+    allowed_origins = {origin.rstrip("/") for origin in allowed_origins}
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=sorted(allowed_origins),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -89,8 +104,7 @@ def create_app() -> FastAPI:
         """Reject cross-origin state changes made with a browser session cookie."""
         if request.method not in {"GET", "HEAD", "OPTIONS"} and request.cookies.get("everwed_session"):
             origin = request.headers.get("origin")
-            allowed = {value.rstrip("/") for value in settings.cors_origins}
-            if origin and origin.rstrip("/") not in allowed:
+            if origin and origin.rstrip("/") not in allowed_origins:
                 return JSONResponse(
                     status_code=403,
                     content={

@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Users,
+  DollarSign,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/planner" },
   { label: "Weddings", icon: Sparkles, path: "/planner/weddings" },
+  { label: "Finance & Payments", icon: DollarSign, path: "/planner/finance" },
   { label: "Planning Tasks", icon: CheckSquare, path: "/planner/tasks" },
   { label: "Vendors", icon: Building2, path: "/planner/vendors" },
   { label: "Enquiries", icon: Inbox, path: "/planner/enquiries", adminOnly: true },
@@ -47,6 +49,8 @@ export const PlannerLayout: React.FC = () => {
         </div>
         <button
           onClick={() => setMobileNavOpen(!mobileNavOpen)}
+          aria-expanded={mobileNavOpen}
+          aria-controls="planner-mobile-navigation"
           className="px-2.5 py-1.5 rounded-lg bg-ivory-100 hover:bg-ivory-200 text-xs font-semibold text-forest-800 flex items-center gap-1.5 border border-border"
         >
           {mobileNavOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
@@ -56,7 +60,7 @@ export const PlannerLayout: React.FC = () => {
 
       {/* Mobile Planner Navigation Overlay */}
       {mobileNavOpen && (
-        <div className="md:hidden bg-white border-b border-border p-4 shadow-lg sticky top-28 z-30 space-y-1 animate-fade-in">
+        <div id="planner-mobile-navigation" className="md:hidden bg-white border-b border-border p-4 shadow-lg sticky top-28 z-30 space-y-1 animate-fade-in">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 mb-2">
             Wedding management
           </p>
@@ -73,7 +77,8 @@ export const PlannerLayout: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   onClick={() => setMobileNavOpen(false)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                aria-current={isActive ? "page" : undefined}
+                className={`flex min-h-11 items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     isActive
                       ? "bg-forest-800 text-ivory shadow-xs"
                       : "text-forest-800 hover:bg-ivory-100"
@@ -118,7 +123,8 @@ export const PlannerLayout: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex min-h-11 items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                     isActive
                       ? "bg-forest-800 text-ivory shadow-xs"
                       : "text-forest-700 hover:bg-ivory-100 hover:text-forest-900"
@@ -144,7 +150,7 @@ export const PlannerLayout: React.FC = () => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 min-w-0">
+        <main className="ew-app-main flex-1 min-w-0">
           <Outlet />
         </main>
       </div>

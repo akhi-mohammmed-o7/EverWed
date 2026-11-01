@@ -9,6 +9,26 @@ export interface User {
   approval_status?: "pending" | "approved" | "rejected" | null;
   partner_one_name?: string | null;
   partner_two_name?: string | null;
+  planner_bio?: string | null;
+  planner_specialties?: string[];
+  planner_destinations?: string[];
+  planner_languages?: string[];
+}
+
+export interface PlannerDirectoryEntry {
+  uid: number;
+  name: string;
+  bio: string;
+  specialties: string[];
+  destinations: string[];
+  languages: string[];
+}
+
+export interface PlannerProfileUpdate {
+  planner_bio: string;
+  planner_specialties: string[];
+  planner_destinations: string[];
+  planner_languages: string[];
 }
 
 export type UserRole = "admin" | "planner" | "team" | "finance" | "couple";
@@ -55,6 +75,7 @@ export interface CoupleWeddingOnboarding {
   theme?: string;
   tradition?: string;
   regional_customization?: string;
+  preferred_planner_uid?: number;
   functions?: Array<{ name: string; date: string; start_time: string; end_time: string }>;
 }
 
@@ -155,7 +176,7 @@ export interface Wedding {
   package_fee?: number | null;
   start_date: string;
   end_date: string;
-  status: 'planning' | 'in_progress' | 'completed' | 'settled';
+  status: 'planning' | 'in_progress' | 'confirmed' | 'completed' | 'settled';
   events_count: number;
   vendors_count: number;
   tasks_count: number;
@@ -469,10 +490,29 @@ export interface ClientPayment {
   payment_method: string;
   transaction_reference: string;
   payment_date: string;
-  status: 'received' | 'verified';
+  status: 'pending' | 'received' | 'verified' | 'failed';
   notes?: string;
   odoo_payment_id?: number;
+  provider?: string;
+  provider_payment_id?: string;
+  provider_payment_link_id?: string;
   created_at: string;
+}
+
+export interface ClientPaymentLink {
+  id: string;
+  wedding_id: string;
+  amount: number;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  status: "creating" | "created" | "partially_paid" | "paid" | "expired" | "cancelled" | "creation_unknown" | "failed";
+  provider: "razorpay";
+  provider_link_id?: string;
+  short_url?: string;
+  stage: string;
+  created_at: string;
+  expires_at?: string;
 }
 
 export interface ClientPaymentCreate {
@@ -526,10 +566,11 @@ export interface VendorPayment {
   bill_id: string;
   vendor_id: string;
   amount: number;
-  payment_type: 'advance' | 'final';
+  payment_type: 'advance' | 'partial' | 'final';
   payment_method: string;
   transaction_reference: string;
   payment_date: string;
+  notes?: string;
   odoo_payment_id?: number;
   created_at: string;
 }
@@ -537,7 +578,7 @@ export interface VendorPayment {
 export interface VendorPaymentCreate {
   bill_id: string;
   amount: number;
-  payment_type?: string;
+  payment_type?: 'advance' | 'partial' | 'final';
   payment_method?: string;
   transaction_reference: string;
   payment_date: string;
@@ -551,6 +592,8 @@ export interface FinancialSummary {
   client_paid_amount: number;
   client_outstanding_receivable: number;
   client_payment_status: string;
+  client_contract_missing: boolean;
+  client_overpayment_amount: number;
   agreed_vendor_total: number;
   actual_vendor_bills_total: number;
   vendor_paid_amount: number;
@@ -572,6 +615,8 @@ export interface WeddingProfitabilitySummary {
   vendor_costs: number;
   gross_profit: number;
   margin_percent: number;
+  client_contract_missing: boolean;
+  client_overpayment: number;
 }
 
 export interface DashboardOverview {
@@ -581,8 +626,11 @@ export interface DashboardOverview {
   overdue_tasks_count: number;
   total_client_receivables_outstanding: number;
   total_client_payments_received: number;
+  client_contracts_missing_count: number;
+  client_contract_overpayment_count: number;
   total_vendor_payables_outstanding: number;
   total_vendor_bills_recorded: number;
+  total_vendor_payments_made: number;
   season_contracted_revenue: number;
   season_actual_expenses: number;
   season_estimated_profit: number;

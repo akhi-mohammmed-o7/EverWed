@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from app.core.exceptions import OdooRecordNotFound
+from app.core.exceptions import OdooRecordNotFound, RoyalKnotException
 from app.schemas.operation import (
     OperationalIssueCreate,
     OperationalIssueResponse,
@@ -33,6 +33,8 @@ class OperationService:
         event = store.events.get(event_id)
         if not event:
             raise OdooRecordNotFound(detail=f"Event '{event_id}' not found")
+        if event.get("wedding_id") != wedding_id:
+            raise RoyalKnotException(status_code=422, detail="Schedule event must belong to the selected wedding.", error_code="SCHEDULE_EVENT_MISMATCH")
 
         item_id = f"sch-{uuid.uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)
@@ -86,9 +88,16 @@ class OperationService:
         delay_minutes: int = 0,
         notes: Optional[str] = None,
     ) -> VendorArrivalLog:
+        event = store.events.get(event_id)
+        if not event:
+            raise OdooRecordNotFound(detail=f"Event '{event_id}' not found")
+        if event.get("wedding_id") != wedding_id:
+            raise RoyalKnotException(status_code=422, detail="Arrival event must belong to the selected wedding.", error_code="ARRIVAL_EVENT_MISMATCH")
         vendor = store.vendors.get(vendor_id)
-        vendor_name = vendor["name"] if vendor else "Vendor"
-        category = vendor["category"] if vendor else "General"
+        if not vendor:
+            raise OdooRecordNotFound(detail=f"Vendor '{vendor_id}' not found")
+        vendor_name = vendor["name"]
+        category = vendor["category"]
 
         log_id = f"arr-{wedding_id}-{vendor_id}-{event_id}"
         status = "expected"
@@ -105,7 +114,7 @@ class OperationService:
             "planned_arrival_time": planned_arrival_time,
             "actual_arrival_time": actual_arrival_time,
             "status": status,
-            "contact_phone": vendor.get("phone") if vendor else None,
+            "contact_phone": vendor.get("phone"),
             "delay_minutes": delay_minutes,
             "notes": notes,
         }
@@ -117,6 +126,11 @@ class OperationService:
         wedding = store.weddings.get(payload.wedding_id)
         if not wedding:
             raise OdooRecordNotFound(detail=f"Wedding '{payload.wedding_id}' not found")
+        event = store.events.get(payload.event_id)
+        if not event:
+            raise OdooRecordNotFound(detail=f"Event '{payload.event_id}' not found")
+        if event.get("wedding_id") != payload.wedding_id:
+            raise RoyalKnotException(status_code=422, detail="Issue event must belong to the selected wedding.", error_code="ISSUE_EVENT_MISMATCH")
 
         issue_id = f"iss-{uuid.uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)

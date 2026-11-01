@@ -12,6 +12,7 @@ from functools import lru_cache
 from typing import List
 
 from pydantic import field_validator
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +49,13 @@ class Settings(BaseSettings):
     database_busy_timeout_ms: int = 5000
     session_ttl_minutes: int = 480
     seed_demo_data_on_startup: bool = False
+
+    # Razorpay credentials are optional in development. Online payment
+    # collection remains unavailable until API and webhook secrets are set.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: SecretStr = SecretStr("")
+    razorpay_webhook_secret: SecretStr = SecretStr("")
+    razorpay_api_timeout_seconds: float = 10.0
 
     # ── Timeouts ─────────────────────────────────────────────────────
     odoo_timeout: int = 10  # seconds for XML-RPC calls
@@ -91,6 +99,14 @@ class Settings(BaseSettings):
             self.odoo_username,
             self.odoo_password,
         ])
+
+    @property
+    def razorpay_configured(self) -> bool:
+        return bool(
+            self.razorpay_key_id.strip()
+            and self.razorpay_key_secret.get_secret_value()
+            and self.razorpay_webhook_secret.get_secret_value()
+        )
 
 
 @lru_cache

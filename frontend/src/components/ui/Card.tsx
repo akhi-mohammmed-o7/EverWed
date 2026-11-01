@@ -10,8 +10,8 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement> & { hover?: boo
   return (
     <div
       className={cn(
-        "bg-white rounded-xl border border-border/80 shadow-sm overflow-hidden",
-        hover && "transition-all duration-200 hover:shadow-md hover:border-gold/40 cursor-pointer",
+        "bg-white rounded-2xl border border-border/80 shadow-sm overflow-hidden",
+        hover && "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-gold/50 cursor-pointer",
         className
       )}
       {...props}
@@ -23,7 +23,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement> & { hover?: boo
 
 export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => {
   return (
-    <div className={cn("p-5 border-b border-border/60 flex items-center justify-between", className)} {...props}>
+    <div className={cn("p-5 border-b border-border/60 flex flex-wrap items-center justify-between gap-3", className)} {...props}>
       {children}
     </div>
   );
@@ -47,11 +47,11 @@ export const StatCard: React.FC<{
 }> = ({ title, value, subtitle, icon, trend, className }) => {
   return (
     <Card className={cn("p-5 relative", className)}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-          <div className="font-serif text-2xl lg:text-3xl font-bold text-forest-800 mt-2">{value}</div>
-          {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-relaxed">{title}</p>
+          <div className="mt-2 break-words font-serif text-2xl font-bold leading-tight text-forest-800 lg:text-3xl">{value}</div>
+          {subtitle && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{subtitle}</p>}
           {trend && (
             <p className={cn("text-xs font-medium mt-2 flex items-center gap-1", trend.positive ? "text-emerald-700" : "text-terracotta")}>
               <span>{trend.positive ? "↑" : "↓"}</span> {trend.value}
@@ -59,7 +59,7 @@ export const StatCard: React.FC<{
           )}
         </div>
         {icon && (
-          <div className="p-3 bg-ivory-200 text-forest-800 rounded-xl">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-gold/20 bg-ivory-100 text-forest-800">
             {icon}
           </div>
         )}

@@ -19,9 +19,12 @@ router = APIRouter(prefix="/api/v1/vendors", tags=["vendors"], dependencies=[Dep
 async def list_vendors(
     category: Optional[str] = Query(None, description="Filter by category (Catering, Decor, Photography, Entertainment/DJ, etc.)"),
     city: Optional[str] = Query(None, description="Filter by city (Jaipur, Udaipur, etc.)"),
+    current_user: dict = Depends(get_current_user),
 ):
     """Retrieve verified vendor directory."""
     data = VendorService.list_vendors(category=category, city=city)
+    if current_user.get("role") not in {"admin", "finance"}:
+        data = [vendor.model_copy(update={"bank_account_details": None}) for vendor in data]
     return APIResponse(success=True, data=data)
 
 
@@ -33,9 +36,11 @@ async def create_vendor(payload: VendorCreate, _: dict = Depends(require_role("a
 
 
 @router.get("/{vendor_id}", response_model=APIResponse[VendorResponse])
-async def get_vendor(vendor_id: str):
+async def get_vendor(vendor_id: str, current_user: dict = Depends(get_current_user)):
     """Retrieve details for a specific vendor."""
     data = VendorService.get_vendor(vendor_id)
+    if current_user.get("role") not in {"admin", "finance"}:
+        data = data.model_copy(update={"bank_account_details": None})
     return APIResponse(success=True, data=data)
 
 

@@ -117,6 +117,8 @@ class QuoteService:
             event = store.events.get(payload.event_id)
             if not event:
                 raise OdooRecordNotFound(detail=f"Event '{payload.event_id}' not found")
+            if event.get("wedding_id") != payload.wedding_id:
+                raise RoyalKnotException(status_code=422, detail="Quote event must belong to the selected wedding.", error_code="QUOTE_EVENT_MISMATCH")
 
         quote_id = f"quote-{uuid.uuid4().hex[:8]}"
         now = datetime.now(timezone.utc)

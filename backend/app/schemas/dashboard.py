@@ -19,6 +19,8 @@ class WeddingProfitabilitySummary(BaseModel):
     vendor_costs: float
     gross_profit: float
     margin_percent: float
+    client_contract_missing: bool = False
+    client_overpayment: float = 0.0
 
 
 class DashboardOverviewResponse(BaseModel):
@@ -29,8 +31,11 @@ class DashboardOverviewResponse(BaseModel):
     
     total_client_receivables_outstanding: float
     total_client_payments_received: float
+    client_contracts_missing_count: int
+    client_contract_overpayment_count: int
     total_vendor_payables_outstanding: float
     total_vendor_bills_recorded: float
+    total_vendor_payments_made: float
     
     season_contracted_revenue: float
     season_actual_expenses: float

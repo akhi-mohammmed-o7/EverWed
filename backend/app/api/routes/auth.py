@@ -17,9 +17,10 @@ from app.core.security import (
     public_user,
     verify_password,
 )
-from app.schemas.auth import CoupleSignup, FirstFounderSetup, LoginRequest, LoginResponse, PlannerApprovalUpdate, PlannerSignup, UserCreate, UserInfo, UserStatusUpdate
+from app.schemas.auth import CoupleSignup, FirstFounderSetup, LoginRequest, LoginResponse, PlannerApprovalUpdate, PlannerProfileUpdate, PlannerSignup, UserCreate, UserInfo, UserStatusUpdate
 from app.schemas.common import APIResponse
 from app.services.store import store
+from app.services.wedding_service import WeddingService
 
 logger = logging.getLogger("everwed.auth")
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -139,6 +140,8 @@ async def create_user(
             user["phone"] = payload.phone.strip() if payload.phone else None
             store.users[user["id"]] = user
     logger.info("User account created: uid=%s role=%s by uid=%s", user["uid"], user["role"], current_user["uid"])
+    if payload.role == "planner" and user.get("active"):
+        WeddingService.auto_assign_unassigned_weddings()
     return APIResponse(success=True, data=UserInfo(**public_user(user)))
 
 
@@ -197,6 +200,24 @@ async def update_planner_approval(
                     session["revoked"] = True
                     store.sessions[session_id] = session
     logger.info("Planner application %s: uid=%s by uid=%s", payload.status, record["uid"], current_user["uid"])
+    if payload.status == "approved":
+        WeddingService.auto_assign_unassigned_weddings()
+    return APIResponse(success=True, data=UserInfo(**public_user(record)))
+
+
+@router.patch("/planner-profile", response_model=APIResponse[UserInfo])
+async def update_planner_profile(
+    payload: PlannerProfileUpdate,
+    current_user: dict = Depends(require_role("planner")),
+) -> APIResponse[UserInfo]:
+    """Allow Planners to maintain the public profile couples use for selection."""
+    with store.transaction(immediate=True):
+        record = store.users.get(current_user["user_id"])
+        if not record or record.get("role") != "planner" or not record.get("active"):
+            raise PermissionDeniedError("An active Planner account is required.")
+        record.update(payload.model_dump())
+        record["updated_at"] = datetime.now(timezone.utc)
+        store.users[record["id"]] = record
     return APIResponse(success=True, data=UserInfo(**public_user(record)))
 
 
